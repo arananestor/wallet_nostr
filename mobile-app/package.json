@@ -1,7 +1,8 @@
 {
   "name": "mobile-app",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+  "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,19 +10,22 @@
     "web": "expo start --web"
   },
   "dependencies": {
-    "@nostr-dev-kit/ndk": "^2.18.1",
-    "@react-native-clipboard/clipboard": "^1.16.3",
-    "@react-navigation/native": "^7.1.21",
-    "@react-navigation/native-stack": "^7.7.0",
-    "expo": "~54.0.25",
-    "expo-status-bar": "~3.0.8",
-    "nostr-tools": "^2.18.0",
-    "react": "19.1.0",
-    "react-native": "0.81.5",
-    "react-native-qrcode-svg": "^6.3.20",
-    "react-native-safe-area-context": "^5.6.2",
-    "react-native-screens": "^4.18.0",
-    "react-native-svg": "^15.15.0"
+    "@nostr-dev-kit/ndk": "^2.10.3",
+    "@react-native-clipboard/clipboard": "^1.14.2",
+    "@react-navigation/native": "^6.1.18",
+    "@react-navigation/native-stack": "^6.11.0",
+    "expo": "~52.0.11",
+    "expo-status-bar": "~2.0.0",
+    "nostr-tools": "^2.10.2",
+    "react": "18.3.1",
+    "react-native": "0.76.3",
+    "react-native-qrcode-svg": "^6.3.11",
+    "react-native-safe-area-context": "^4.12.0",
+    "react-native-screens": "^4.1.0",
+    "react-native-svg": "^15.8.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.25.2"
   },
   "private": true
 }
