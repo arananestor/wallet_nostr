@@ -1,5 +1,6 @@
 import NDK, { NDKEvent, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { Buffer } from 'buffer';
 
 const RELAYS = [
   'wss://relay.damus.io',
