@@ -1,12 +1,34 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import Header from '../components/Header';
 import { createNostrClient, publishProfile } from '../services/nostr';
 import { saveNostrKeys, saveUserProfile } from '../utils/storage';
 
 export default function ConnectWalletScreen({ route, navigation }) {
-  const { nombre, actividad, keys } = route.params;
+  const params = route?.params || {};
+  const nombre = params.nombre || '';
+  const actividad = params.actividad || '';
+  const keys = params.keys || null;
+  
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  if (!keys) {
+    return (
+      <View style={styles.container}>
+        <Header title="Error" />
+        <View style={styles.content}>
+          <Text style={styles.errorText}>Error: No se encontraron las llaves. Vuelve a intentar.</Text>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })}
+          >
+            <Text style={styles.buttonText}>Volver al inicio</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
   
   const validateLightningAddress = (addr) => {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -42,15 +64,7 @@ export default function ConnectWalletScreen({ route, navigation }) {
       
       navigation.reset({
         index: 0,
-        routes: [{ 
-          name: 'QRScreen', 
-          params: { 
-            npub: keys.npub, 
-            lightningAddress: address,
-            nombre,
-            actividad,
-          } 
-        }],
+        routes: [{ name: 'Profile' }],
       });
       
     } catch (error) {
@@ -62,33 +76,35 @@ export default function ConnectWalletScreen({ route, navigation }) {
   
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Conecta tu wallet</Text>
+      <Header title="Conectar Wallet" />
       
-      <Text style={styles.description}>
-        Ingresa tu Lightning Address para recibir pagos. Si usas Chivo Wallet, tu dirección es algo como: tunombre@chivo.com
-      </Text>
-      
-      <TextInput
-        style={styles.input}
-        placeholder="usuario@getalby.com"
-        value={address}
-        onChangeText={setAddress}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        editable={!loading}
-      />
-      
-      <TouchableOpacity 
-        style={[styles.button, loading && styles.buttonDisabled]} 
-        onPress={handleConnect}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Conectar</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <Text style={styles.description}>
+          Ingresa tu Lightning Address para recibir pagos. Si usas Chivo Wallet, tu dirección es algo como: tunombre@chivo.com
+        </Text>
+        
+        <TextInput
+          style={styles.input}
+          placeholder="usuario@getalby.com"
+          value={address}
+          onChangeText={setAddress}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          editable={!loading}
+        />
+        
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleConnect}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Conectar</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -97,13 +113,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 40,
-    marginBottom: 10,
+  content: {
+    flex: 1,
+    padding: 20,
   },
   description: {
     fontSize: 14,
@@ -132,5 +145,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });

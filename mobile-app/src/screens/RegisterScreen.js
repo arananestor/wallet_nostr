@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import Header from '../components/Header';
 import { generateNostrKeysWithMnemonic } from '../services/nostr';
 
 export default function RegisterScreen({ navigation }) {
@@ -29,28 +30,30 @@ export default function RegisterScreen({ navigation }) {
   
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Cuéntanos sobre ti</Text>
+      <Header title="Registro" />
       
-      <Text style={styles.label}>Tu nombre *</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ej: Juan Pérez"
-        value={nombre}
-        onChangeText={setNombre}
-      />
-      
-      <Text style={styles.label}>¿Qué haces? (opcional)</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Ej: Hago malabares en el semáforo"
-        value={actividad}
-        onChangeText={setActividad}
-        multiline
-      />
-      
-      <TouchableOpacity style={styles.button} onPress={handleContinue}>
-        <Text style={styles.buttonText}>Siguiente</Text>
-      </TouchableOpacity>
+      <View style={styles.content}>
+        <Text style={styles.label}>Tu nombre *</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ej: Juan Pérez"
+          value={nombre}
+          onChangeText={setNombre}
+        />
+        
+        <Text style={styles.label}>¿Qué haces? (opcional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ej: Hago malabares en el semáforo"
+          value={actividad}
+          onChangeText={setActividad}
+          multiline
+        />
+        
+        <TouchableOpacity style={styles.button} onPress={handleContinue}>
+          <Text style={styles.buttonText}>Siguiente</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -59,13 +62,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    padding: 20,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 40,
-    marginBottom: 30,
+  content: {
+    flex: 1,
+    padding: 20,
   },
   label: {
     fontSize: 16,
