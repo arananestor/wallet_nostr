@@ -1,6 +1,8 @@
 import NDK, { NDKEvent, NDKPrivateKeySigner } from '@nostr-dev-kit/ndk';
 import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 import { Buffer } from 'buffer';
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
+import { wordlist } from '@scure/bip39/wordlists/spanish';
 
 const RELAYS = [
   'wss://relay.damus.io',
@@ -8,6 +10,42 @@ const RELAYS = [
   'wss://nos.lol',
   'wss://relay.nostr.band',
 ];
+
+export function generateNostrKeysWithMnemonic() {
+  const mnemonic = generateMnemonic(wordlist, 128);
+  const seed = mnemonicToSeedSync(mnemonic);
+  const privateKey = seed.slice(0, 32);
+  const publicKey = getPublicKey(privateKey);
+  const nsec = nip19.nsecEncode(privateKey);
+  const npub = nip19.npubEncode(publicKey);
+  
+  return {
+    mnemonic,
+    privateKey: Buffer.from(privateKey).toString('hex'),
+    publicKey,
+    nsec,
+    npub,
+  };
+}
+
+export function restoreKeysFromMnemonic(mnemonic) {
+  if (!validateMnemonic(mnemonic, wordlist)) {
+    throw new Error('Frase inválida');
+  }
+  
+  const seed = mnemonicToSeedSync(mnemonic);
+  const privateKey = seed.slice(0, 32);
+  const publicKey = getPublicKey(privateKey);
+  const nsec = nip19.nsecEncode(privateKey);
+  const npub = nip19.npubEncode(publicKey);
+  
+  return {
+    privateKey: Buffer.from(privateKey).toString('hex'),
+    publicKey,
+    nsec,
+    npub,
+  };
+}
 
 export function generateNostrKeys() {
   const privateKey = generateSecretKey();

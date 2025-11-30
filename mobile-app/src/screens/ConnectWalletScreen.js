@@ -1,39 +1,37 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { generateNostrKeys, createNostrClient, publishProfile } from '../services/nostr';
+import { createNostrClient, publishProfile } from '../services/nostr';
 import { saveNostrKeys, saveUserProfile } from '../utils/storage';
 
 export default function ConnectWalletScreen({ route, navigation }) {
-  const { nombre, actividad } = route.params;
+  const { nombre, actividad, keys } = route.params;
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   
+  const validateLightningAddress = (addr) => {
+    const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return regex.test(addr);
+  };
+  
   const handleConnect = async () => {
-    if (!address.includes('@')) {
-      Alert.alert('Error', 'Formato inválido. Debe ser: usuario@chivo.com');
+    if (!validateLightningAddress(address)) {
+      Alert.alert('Error', 'Ingresa una dirección válida. Ejemplo: usuario@getalby.com');
       return;
     }
     
     setLoading(true);
     
     try {
-      // 1. Generar llaves Nostr
-      const keys = generateNostrKeys();
-      
-      // 2. Guardar llaves localmente
       await saveNostrKeys(keys);
       
-      // 3. Conectar a Nostr
       const ndk = await createNostrClient(keys.privateKey);
       
-      // 4. Publicar perfil
       await publishProfile(ndk, {
         name: nombre,
         about: actividad || '',
         lud16: address,
       });
       
-      // 5. Guardar perfil localmente
       await saveUserProfile({
         nombre,
         actividad,
@@ -42,33 +40,41 @@ export default function ConnectWalletScreen({ route, navigation }) {
       
       setLoading(false);
       
-      // 6. Navegar a pantalla de QR
-      navigation.navigate('QRScreen', {
-        npub: keys.npub,
-        lightningAddress: address,
+      navigation.reset({
+        index: 0,
+        routes: [{ 
+          name: 'QRScreen', 
+          params: { 
+            npub: keys.npub, 
+            lightningAddress: address,
+            nombre,
+            actividad,
+          } 
+        }],
       });
       
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'No se pudo conectar. Intenta de nuevo.');
+      Alert.alert('Error', 'No se pudo conectar. Verifica tu conexión a internet.');
       console.error(error);
     }
   };
   
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Conecta Chivo Wallet</Text>
+      <Text style={styles.title}>Conecta tu wallet</Text>
       
       <Text style={styles.description}>
-        Ingresa tu dirección Lightning de Chivo
+        Ingresa tu Lightning Address para recibir pagos. Si usas Chivo Wallet, tu dirección es algo como: tunombre@chivo.com
       </Text>
       
       <TextInput
         style={styles.input}
-        placeholder="usuario@chivo.com"
+        placeholder="usuario@getalby.com"
         value={address}
         onChangeText={setAddress}
         autoCapitalize="none"
+        keyboardType="email-address"
         editable={!loading}
       />
       
@@ -103,6 +109,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 30,
+    lineHeight: 20,
   },
   input: {
     borderWidth: 1,
