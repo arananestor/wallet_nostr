@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import Header from '../components/Header';
-import { restoreKeysFromMnemonic } from '../services/nostr';
-import { saveNostrKeys } from '../utils/storage';
+import { restoreKeysFromMnemonic, createNostrClient, getProfile } from '../services/nostr';
+import { saveNostrKeys, saveUserProfile } from '../utils/storage';
 
 export default function RestoreScreen({ navigation }) {
   const [mnemonic, setMnemonic] = useState('');
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
   
   const handleRestore = async () => {
     const words = mnemonic.trim().toLowerCase().split(/\s+/);
@@ -17,28 +18,67 @@ export default function RestoreScreen({ navigation }) {
     }
     
     setLoading(true);
+    setStatus('Verificando frase...');
     
     try {
       const keys = restoreKeysFromMnemonic(mnemonic.trim().toLowerCase());
       
+      setStatus('Buscando perfil en Nostr...');
+      
+      const ndk = await createNostrClient(keys.privateKey);
+      const nostrProfile = await getProfile(ndk, keys.npub);
+      
       await saveNostrKeys(keys);
       
-      setLoading(false);
-      
-      navigation.reset({
-        index: 0,
-        routes: [{ 
-          name: 'ConnectWallet', 
-          params: { 
-            nombre: 'Usuario recuperado',
-            actividad: '',
-            keys,
-          } 
-        }],
-      });
+      if (nostrProfile && nostrProfile.name) {
+        setStatus('Perfil encontrado!');
+        
+        await saveUserProfile({
+          nombre: nostrProfile.name,
+          actividad: nostrProfile.about || '',
+          lightningAddress: nostrProfile.lud16 || '',
+        });
+        
+        setLoading(false);
+        
+        if (nostrProfile.lud16) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Profile' }],
+          });
+        } else {
+          navigation.reset({
+            index: 0,
+            routes: [{ 
+              name: 'ConnectWallet', 
+              params: { 
+                nombre: nostrProfile.name,
+                actividad: nostrProfile.about || '',
+                keys,
+              } 
+            }],
+          });
+        }
+      } else {
+        setStatus('Perfil no encontrado, configurando nuevo...');
+        setLoading(false);
+        
+        navigation.reset({
+          index: 0,
+          routes: [{ 
+            name: 'ConnectWallet', 
+            params: { 
+              nombre: 'Usuario',
+              actividad: '',
+              keys,
+            } 
+          }],
+        });
+      }
       
     } catch (error) {
       setLoading(false);
+      setStatus('');
       Alert.alert('Error', 'Frase inválida. Verifica las palabras.');
       console.error(error);
     }
@@ -61,7 +101,10 @@ export default function RestoreScreen({ navigation }) {
           autoCapitalize="none"
           multiline
           numberOfLines={4}
+          editable={!loading}
         />
+        
+        {status ? <Text style={styles.status}>{status}</Text> : null}
         
         <TouchableOpacity 
           style={[styles.button, loading && styles.buttonDisabled]} 
@@ -100,9 +143,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 15,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: 15,
     minHeight: 100,
     textAlignVertical: 'top',
+  },
+  status: {
+    fontSize: 14,
+    color: '#F7931A',
+    textAlign: 'center',
+    marginBottom: 15,
   },
   button: {
     backgroundColor: '#F7931A',
