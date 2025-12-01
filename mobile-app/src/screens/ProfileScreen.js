@@ -13,7 +13,7 @@ export default function ProfileScreen({ navigation }) {
   const [keys, setKeys] = useState(null);
   const qrRef = useRef();
   
-  const { isConnected, getTotalToday } = useDonations();
+  const { isConnected, getTotalToday, simulateDonation } = useDonations();
   
   useEffect(() => {
     loadProfile();
@@ -171,6 +171,10 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.linkText}>⚙️ Configuración</Text>
           </TouchableOpacity>
         </View>
+        
+        <TouchableOpacity style={styles.testButton} onPress={simulateDonation}>
+          <Text style={styles.testButtonText}>🧪 Simular Donación (TEST)</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -226,4 +230,16 @@ const styles = StyleSheet.create({
   bottomButtons: { marginTop: 10 },
   linkButton: { padding: 12 },
   linkText: { fontSize: 16, color: '#666' },
+  testButton: {
+    backgroundColor: '#FF6B6B',
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+  },
+  testButtonText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
 });

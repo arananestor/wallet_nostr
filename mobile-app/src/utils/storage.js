@@ -1,49 +1,93 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEYS = {
-  NOSTR_PRIVATE_KEY: '@nostr_private_key',
-  NOSTR_PUBLIC_KEY: '@nostr_public_key',
-  NOSTR_NSEC: '@nostr_nsec',
-  NOSTR_NPUB: '@nostr_npub',
-  USER_PROFILE: '@user_profile',
+  NOSTR_KEYS: 'nostr_keys',
+  USER_PROFILE: 'user_profile',
+  DONATIONS: 'donations',
 };
 
+// === LLAVES NOSTR ===
+
 export async function saveNostrKeys(keys) {
-  await AsyncStorage.multiSet([
-    [KEYS.NOSTR_PRIVATE_KEY, keys.privateKey],
-    [KEYS.NOSTR_PUBLIC_KEY, keys.publicKey],
-    [KEYS.NOSTR_NSEC, keys.nsec],
-    [KEYS.NOSTR_NPUB, keys.npub],
-  ]);
+  try {
+    await AsyncStorage.setItem(KEYS.NOSTR_KEYS, JSON.stringify(keys));
+  } catch (error) {
+    console.error('Error saving Nostr keys:', error);
+  }
 }
 
 export async function getNostrKeys() {
-  const values = await AsyncStorage.multiGet([
-    KEYS.NOSTR_PRIVATE_KEY,
-    KEYS.NOSTR_PUBLIC_KEY,
-    KEYS.NOSTR_NSEC,
-    KEYS.NOSTR_NPUB,
-  ]);
-  
-  if (!values[0][1]) return null;
-  
-  return {
-    privateKey: values[0][1],
-    publicKey: values[1][1],
-    nsec: values[2][1],
-    npub: values[3][1],
-  };
+  try {
+    const keys = await AsyncStorage.getItem(KEYS.NOSTR_KEYS);
+    return keys ? JSON.parse(keys) : null;
+  } catch (error) {
+    console.error('Error getting Nostr keys:', error);
+    return null;
+  }
 }
 
+// === PERFIL DE USUARIO ===
+
 export async function saveUserProfile(profile) {
-  await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(profile));
+  try {
+    await AsyncStorage.setItem(KEYS.USER_PROFILE, JSON.stringify(profile));
+  } catch (error) {
+    console.error('Error saving user profile:', error);
+  }
 }
 
 export async function getUserProfile() {
-  const profile = await AsyncStorage.getItem(KEYS.USER_PROFILE);
-  return profile ? JSON.parse(profile) : null;
+  try {
+    const profile = await AsyncStorage.getItem(KEYS.USER_PROFILE);
+    return profile ? JSON.parse(profile) : null;
+  } catch (error) {
+    console.error('Error getting user profile:', error);
+    return null;
+  }
 }
 
+// === DONACIONES ===
+
+export async function saveDonations(donations) {
+  try {
+    await AsyncStorage.setItem(KEYS.DONATIONS, JSON.stringify(donations));
+  } catch (error) {
+    console.error('Error saving donations:', error);
+  }
+}
+
+export async function getDonations() {
+  try {
+    const donations = await AsyncStorage.getItem(KEYS.DONATIONS);
+    return donations ? JSON.parse(donations) : [];
+  } catch (error) {
+    console.error('Error getting donations:', error);
+    return [];
+  }
+}
+
+export async function addDonation(donation) {
+  try {
+    const donations = await getDonations();
+    const updatedDonations = [donation, ...donations];
+    await saveDonations(updatedDonations);
+    return updatedDonations;
+  } catch (error) {
+    console.error('Error adding donation:', error);
+    return [];
+  }
+}
+
+// === LIMPIAR TODO ===
+
 export async function clearAllData() {
-  await AsyncStorage.clear();
+  try {
+    await AsyncStorage.multiRemove([
+      KEYS.NOSTR_KEYS,
+      KEYS.USER_PROFILE,
+      KEYS.DONATIONS,
+    ]);
+  } catch (error) {
+    console.error('Error clearing data:', error);
+  }
 }
