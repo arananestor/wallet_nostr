@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert, ActivityIndicator } from 'react-native';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Share, Alert, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import * as Print from 'expo-print';
 import Header from '../components/Header';
@@ -13,7 +13,7 @@ export default function ProfileScreen({ navigation }) {
   const [keys, setKeys] = useState(null);
   const qrRef = useRef();
   
-  const { isConnected, getTotalToday, simulateDonation } = useDonations();
+  const { isConnected, isRefreshing, refresh, getTotalToday, simulateDonation } = useDonations();
   
   useEffect(() => {
     loadProfile();
@@ -40,6 +40,10 @@ export default function ProfileScreen({ navigation }) {
       setLoading(false);
     }
   };
+  
+  const onRefresh = useCallback(async () => {
+    await refresh();
+  }, [refresh]);
   
   const handleShare = async () => {
     try {
@@ -123,59 +127,76 @@ export default function ProfileScreen({ navigation }) {
     <View style={styles.container}>
       <Header title="Mi Perfil" showBack={false} />
       
-      <View style={styles.content}>
-        <View style={styles.statusBar}>
-          <View style={[styles.statusDot, isConnected ? styles.connected : styles.disconnected]} />
-          <Text style={styles.statusText}>{isConnected ? 'Conectado' : 'Sin conexión'}</Text>
-        </View>
-        
-        {todayTotal > 0 && (
-          <View style={styles.todayBox}>
-            <Text style={styles.todayLabel}>Hoy</Text>
-            <Text style={styles.todayAmount}>{todayTotal} sats</Text>
-          </View>
-        )}
-        
-        <View style={styles.userInfo}>
-          <Text style={styles.name}>{profile.nombre}</Text>
-          {profile.actividad && <Text style={styles.activity}>{profile.actividad}</Text>}
-        </View>
-        
-        <View style={styles.qrContainer}>
-          <QRCode
-            value={qrData}
-            size={180}
-            backgroundColor="white"
-            getRef={(ref) => (qrRef.current = ref)}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={onRefresh}
+            colors={['#F7931A']}
+            tintColor="#F7931A"
+            title="Actualizando..."
+            titleColor="#666"
           />
-        </View>
-        
-        <Text style={styles.address}>{profile.lightningAddress}</Text>
-        
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.button} onPress={handleShare}>
-            <Text style={styles.buttonText}>Compartir</Text>
-          </TouchableOpacity>
+        }
+      >
+        <View style={styles.content}>
+          <View style={styles.statusBar}>
+            <View style={[styles.statusDot, isConnected ? styles.connected : styles.disconnected]} />
+            <Text style={styles.statusText}>
+              {isConnected ? 'Conectado' : 'Sin conexión'} • Arrastra para actualizar
+            </Text>
+          </View>
           
-          <TouchableOpacity style={styles.buttonSecondary} onPress={handlePrint}>
-            <Text style={styles.buttonSecondaryText}>Imprimir</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.bottomButtons}>
-          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('History')}>
-            <Text style={styles.linkText}>📊 Historial de donaciones</Text>
-          </TouchableOpacity>
+          {todayTotal > 0 && (
+            <View style={styles.todayBox}>
+              <Text style={styles.todayLabel}>Hoy</Text>
+              <Text style={styles.todayAmount}>{todayTotal} sats</Text>
+            </View>
+          )}
           
-          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Settings')}>
-            <Text style={styles.linkText}>⚙️ Configuración</Text>
+          <View style={styles.userInfo}>
+            <Text style={styles.name}>{profile.nombre}</Text>
+            {profile.actividad && <Text style={styles.activity}>{profile.actividad}</Text>}
+          </View>
+          
+          <View style={styles.qrContainer}>
+            <QRCode
+              value={qrData}
+              size={180}
+              backgroundColor="white"
+              getRef={(ref) => (qrRef.current = ref)}
+            />
+          </View>
+          
+          <Text style={styles.address}>{profile.lightningAddress}</Text>
+          
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.button} onPress={handleShare}>
+              <Text style={styles.buttonText}>Compartir</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.buttonSecondary} onPress={handlePrint}>
+              <Text style={styles.buttonSecondaryText}>Imprimir</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.bottomButtons}>
+            <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('History')}>
+              <Text style={styles.linkText}>📊 Historial de donaciones</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Settings')}>
+              <Text style={styles.linkText}>⚙️ Configuración</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {/* BOTÓN DE PRUEBA - QUITAR EN PRODUCCIÓN */}
+          <TouchableOpacity style={styles.testButton} onPress={simulateDonation}>
+            <Text style={styles.testButtonText}>🧪 Simular Donación (TEST)</Text>
           </TouchableOpacity>
         </View>
-        
-        <TouchableOpacity style={styles.testButton} onPress={simulateDonation}>
-          <Text style={styles.testButtonText}>🧪 Simular Donación (TEST)</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -183,12 +204,13 @@ export default function ProfileScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+  scrollContent: { flexGrow: 1 },
   content: { flex: 1, padding: 20, alignItems: 'center' },
   statusBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
-  connected: { backgroundColor: '#00FF00' },
+  connected: { backgroundColor: '#00CC00' },
   disconnected: { backgroundColor: '#FF0000' },
-  statusText: { fontSize: 12, color: '#666' },
+  statusText: { fontSize: 12, color: '#999' },
   todayBox: {
     backgroundColor: '#FFF3E0',
     paddingHorizontal: 20,

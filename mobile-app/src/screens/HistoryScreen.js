@@ -1,9 +1,14 @@
-import { View, Text, StyleSheet, SectionList, TouchableOpacity } from 'react-native';
+import { useCallback } from 'react';
+import { View, Text, StyleSheet, SectionList, RefreshControl } from 'react-native';
 import Header from '../components/Header';
 import { useDonations } from '../context/DonationContext';
 
 export default function HistoryScreen() {
-  const { donations, getTotalToday, getTotalAll, getDonationsByDate } = useDonations();
+  const { donations, isRefreshing, refresh, getTotalToday, getTotalAll, getDonationsByDate } = useDonations();
+  
+  const onRefresh = useCallback(async () => {
+    await refresh();
+  }, [refresh]);
   
   const formatDate = (dateString) => {
     const today = new Date().toISOString().split('T')[0];
@@ -54,43 +59,69 @@ export default function HistoryScreen() {
     </View>
   );
   
-  const totalToday = getTotalToday();
-  const totalAll = getTotalAll();
+  const renderHeader = () => (
+    <View style={styles.statsRow}>
+      <View style={styles.statBox}>
+        <Text style={styles.statLabel}>Hoy</Text>
+        <Text style={styles.statValue}>{getTotalToday()}</Text>
+        <Text style={styles.statUnit}>sats</Text>
+      </View>
+      
+      <View style={[styles.statBox, styles.statBoxHighlight]}>
+        <Text style={styles.statLabel}>Total</Text>
+        <Text style={[styles.statValue, styles.statValueHighlight]}>{getTotalAll()}</Text>
+        <Text style={styles.statUnit}>sats</Text>
+      </View>
+    </View>
+  );
+  
+  const renderEmpty = () => (
+    <View style={styles.emptyState}>
+      <Text style={styles.emptyIcon}>💰</Text>
+      <Text style={styles.emptyText}>Aún no hay donaciones</Text>
+      <Text style={styles.emptySubtext}>Cuando recibas sats, aparecerán aquí</Text>
+      <Text style={styles.pullHint}>↓ Arrastra para actualizar</Text>
+    </View>
+  );
   
   return (
     <View style={styles.container}>
       <Header title="Historial" />
       
       <View style={styles.content}>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statLabel}>Hoy</Text>
-            <Text style={styles.statValue}>{totalToday}</Text>
-            <Text style={styles.statUnit}>sats</Text>
-          </View>
-          
-          <View style={[styles.statBox, styles.statBoxHighlight]}>
-            <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, styles.statValueHighlight]}>{totalAll}</Text>
-            <Text style={styles.statUnit}>sats</Text>
-          </View>
-        </View>
-        
         {donations.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💰</Text>
-            <Text style={styles.emptyText}>Aún no hay donaciones</Text>
-            <Text style={styles.emptySubtext}>Cuando recibas sats, aparecerán aquí</Text>
-          </View>
+          <SectionList
+            sections={[]}
+            ListHeaderComponent={renderHeader}
+            ListEmptyComponent={renderEmpty}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={['#F7931A']}
+                tintColor="#F7931A"
+              />
+            }
+            contentContainerStyle={styles.emptyContainer}
+          />
         ) : (
           <SectionList
             sections={sections}
             renderItem={renderDonation}
             renderSectionHeader={renderSectionHeader}
+            ListHeaderComponent={renderHeader}
             keyExtractor={(item) => item.id}
             style={styles.list}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={true}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                colors={['#F7931A']}
+                tintColor="#F7931A"
+              />
+            }
           />
         )}
       </View>
@@ -141,8 +172,10 @@ const styles = StyleSheet.create({
   senderName: { fontSize: 16, fontWeight: '500', color: '#333' },
   donationTime: { fontSize: 12, color: '#999', marginTop: 2 },
   donationAmount: { fontSize: 18, fontWeight: 'bold', color: '#00AA00' },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  emptyContainer: { flex: 1 },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 50 },
   emptyIcon: { fontSize: 60, marginBottom: 20 },
   emptyText: { fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 5 },
   emptySubtext: { fontSize: 14, color: '#999' },
+  pullHint: { fontSize: 12, color: '#ccc', marginTop: 30 },
 });

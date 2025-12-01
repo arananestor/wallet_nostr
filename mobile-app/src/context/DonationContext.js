@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
 import { getNostrKeys, getDonations, addDonation } from '../utils/storage';
 import { createNostrClient, subscribeToZaps } from '../services/nostr';
 
@@ -9,6 +10,7 @@ export function DonationProvider({ children }) {
   const [donations, setDonations] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const subscriptionRef = useRef(null);
   const ndkRef = useRef(null);
   
@@ -23,9 +25,7 @@ export function DonationProvider({ children }) {
   }, []);
   
   const initializeApp = async () => {
-    // Primero cargamos donaciones guardadas
     await loadSavedDonations();
-    // Luego conectamos a Nostr
     await connectToNostr();
     setIsLoading(false);
   };
@@ -47,7 +47,12 @@ export function DonationProvider({ children }) {
       const keys = await getNostrKeys();
       if (!keys) {
         console.log('⚠️ No hay llaves, no se puede conectar a Nostr');
-        return;
+        return false;
+      }
+      
+      // Desconectar suscripción anterior si existe
+      if (subscriptionRef.current) {
+        subscriptionRef.current.stop();
       }
       
       console.log('🔌 Conectando a Nostr...');
@@ -58,10 +63,32 @@ export function DonationProvider({ children }) {
       
       subscriptionRef.current = subscribeToZaps(ndk, keys.npub, handleNewZap);
       console.log('👂 Escuchando zaps...');
+      
+      return true;
     } catch (error) {
       console.error('❌ Error connecting to Nostr:', error);
       setIsConnected(false);
+      return false;
     }
+  };
+  
+  const refresh = async () => {
+    setIsRefreshing(true);
+    console.log('🔄 Refrescando...');
+    
+    // Recargar donaciones guardadas
+    await loadSavedDonations();
+    
+    // Reconectar a Nostr
+    const connected = await connectToNostr();
+    
+    // Vibración suave para indicar que terminó
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    setIsRefreshing(false);
+    console.log('✅ Refresh completado');
+    
+    return connected;
   };
   
   const handleNewZap = async (zapInfo) => {
@@ -72,6 +99,9 @@ export function DonationProvider({ children }) {
       timestamp: zapInfo.timestamp || Math.floor(Date.now() / 1000),
       date: new Date().toISOString().split('T')[0],
     };
+    
+    // Vibración fuerte para notificar donación
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
     // Guardar en storage y actualizar estado
     const updatedDonations = await addDonation(donation);
@@ -119,7 +149,9 @@ export function DonationProvider({ children }) {
       date: new Date().toISOString().split('T')[0],
     };
     
-    // Guardar en storage y actualizar estado
+    // Vibración para simular donación real
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
     const updatedDonations = await addDonation(testDonation);
     setDonations(updatedDonations);
     setCurrentDonation(testDonation);
@@ -133,6 +165,8 @@ export function DonationProvider({ children }) {
         donations,
         isConnected,
         isLoading,
+        isRefreshing,
+        refresh,
         getTodayDonations,
         getTotalToday,
         getTotalAll,
