@@ -5,12 +5,15 @@ import * as Print from 'expo-print';
 import Header from '../components/Header';
 import { getNostrKeys, getUserProfile } from '../utils/storage';
 import { generateQRData } from '../services/nostr';
+import { useDonations } from '../context/DonationContext';
 
 export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
   const [keys, setKeys] = useState(null);
   const qrRef = useRef();
+  
+  const { isConnected, getTotalToday } = useDonations();
   
   useEffect(() => {
     loadProfile();
@@ -114,12 +117,25 @@ export default function ProfileScreen({ navigation }) {
   }
   
   const qrData = generateQRData(keys.npub, profile.lightningAddress);
+  const todayTotal = getTotalToday();
   
   return (
     <View style={styles.container}>
       <Header title="Mi Perfil" showBack={false} />
       
       <View style={styles.content}>
+        <View style={styles.statusBar}>
+          <View style={[styles.statusDot, isConnected ? styles.connected : styles.disconnected]} />
+          <Text style={styles.statusText}>{isConnected ? 'Conectado' : 'Sin conexión'}</Text>
+        </View>
+        
+        {todayTotal > 0 && (
+          <View style={styles.todayBox}>
+            <Text style={styles.todayLabel}>Hoy</Text>
+            <Text style={styles.todayAmount}>{todayTotal} sats</Text>
+          </View>
+        )}
+        
         <View style={styles.userInfo}>
           <Text style={styles.name}>{profile.nombre}</Text>
           {profile.actividad && <Text style={styles.activity}>{profile.actividad}</Text>}
@@ -128,7 +144,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.qrContainer}>
           <QRCode
             value={qrData}
-            size={200}
+            size={180}
             backgroundColor="white"
             getRef={(ref) => (qrRef.current = ref)}
           />
@@ -146,9 +162,15 @@ export default function ProfileScreen({ navigation }) {
           </TouchableOpacity>
         </View>
         
-        <TouchableOpacity style={styles.settingsButton} onPress={() => navigation.navigate('Settings')}>
-          <Text style={styles.settingsText}>⚙️ Configuración</Text>
-        </TouchableOpacity>
+        <View style={styles.bottomButtons}>
+          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('History')}>
+            <Text style={styles.linkText}>📊 Historial de donaciones</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.linkButton} onPress={() => navigation.navigate('Settings')}>
+            <Text style={styles.linkText}>⚙️ Configuración</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -158,11 +180,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
   content: { flex: 1, padding: 20, alignItems: 'center' },
-  userInfo: { alignItems: 'center', marginBottom: 20 },
-  name: { fontSize: 24, fontWeight: 'bold', color: '#333' },
+  statusBar: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
+  statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
+  connected: { backgroundColor: '#00FF00' },
+  disconnected: { backgroundColor: '#FF0000' },
+  statusText: { fontSize: 12, color: '#666' },
+  todayBox: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  todayLabel: { fontSize: 14, color: '#F7931A', marginRight: 10 },
+  todayAmount: { fontSize: 18, fontWeight: 'bold', color: '#F7931A' },
+  userInfo: { alignItems: 'center', marginBottom: 15 },
+  name: { fontSize: 22, fontWeight: 'bold', color: '#333' },
   activity: { fontSize: 14, color: '#666', marginTop: 5 },
   qrContainer: {
-    padding: 20,
+    padding: 15,
     backgroundColor: '#fff',
     borderRadius: 20,
     shadowColor: '#000',
@@ -170,21 +208,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
     elevation: 5,
-    marginBottom: 15,
+    marginBottom: 10,
   },
-  address: { fontSize: 14, color: '#666', marginBottom: 25 },
-  buttonRow: { flexDirection: 'row', gap: 15 },
-  button: { backgroundColor: '#F7931A', paddingVertical: 12, paddingHorizontal: 30, borderRadius: 10 },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  address: { fontSize: 12, color: '#666', marginBottom: 20 },
+  buttonRow: { flexDirection: 'row', gap: 15, marginBottom: 20 },
+  button: { backgroundColor: '#F7931A', paddingVertical: 12, paddingHorizontal: 25, borderRadius: 10 },
+  buttonText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   buttonSecondary: {
     backgroundColor: '#fff',
     paddingVertical: 12,
-    paddingHorizontal: 30,
+    paddingHorizontal: 25,
     borderRadius: 10,
     borderWidth: 2,
     borderColor: '#F7931A',
   },
-  buttonSecondaryText: { color: '#F7931A', fontSize: 16, fontWeight: 'bold' },
-  settingsButton: { marginTop: 25, padding: 15 },
-  settingsText: { fontSize: 16, color: '#666' },
+  buttonSecondaryText: { color: '#F7931A', fontSize: 14, fontWeight: 'bold' },
+  bottomButtons: { marginTop: 10 },
+  linkButton: { padding: 12 },
+  linkText: { fontSize: 16, color: '#666' },
 });
