@@ -6,6 +6,7 @@ import Header from '../components/Header';
 import { getNostrKeys, getUserProfile } from '../utils/storage';
 import { generateQRData } from '../services/nostr';
 import { useDonations } from '../context/DonationContext';
+import { useToast } from '../context/ToastContext';
 
 export default function ProfileScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,17 @@ export default function ProfileScreen({ navigation }) {
   const [keys, setKeys] = useState(null);
   const qrRef = useRef();
   
-  const { isConnected, isRefreshing, refresh, getTotalToday, simulateDonation } = useDonations();
+  const { 
+    isConnected, 
+    isRefreshing, 
+    connectionError,
+    refresh, 
+    manualReconnect,
+    getTotalToday, 
+    simulateDonation 
+  } = useDonations();
+  
+  const { showToast } = useToast();
   
   useEffect(() => {
     loadProfile();
@@ -37,13 +48,29 @@ export default function ProfileScreen({ navigation }) {
       setLoading(false);
     } catch (error) {
       console.error(error);
+      showToast('Error cargando perfil', 'error');
       setLoading(false);
     }
   };
   
   const onRefresh = useCallback(async () => {
-    await refresh();
-  }, [refresh]);
+    const connected = await refresh();
+    if (connected) {
+      showToast('Conexión actualizada', 'success');
+    } else {
+      showToast('No se pudo conectar', 'warning');
+    }
+  }, [refresh, showToast]);
+  
+  const handleReconnect = async () => {
+    showToast('Reconectando...', 'info');
+    const connected = await manualReconnect();
+    if (connected) {
+      showToast('¡Conectado!', 'success');
+    } else {
+      showToast('No se pudo conectar', 'error');
+    }
+  };
   
   const handleShare = async () => {
     try {
@@ -51,7 +78,7 @@ export default function ProfileScreen({ navigation }) {
         message: `Envíame sats: ${profile.lightningAddress}`,
       });
     } catch (error) {
-      console.error(error);
+      showToast('Error al compartir', 'error');
     }
   };
   
@@ -108,7 +135,7 @@ export default function ProfileScreen({ navigation }) {
         await Print.printAsync({ html, orientation: Print.Orientation.portrait });
       });
     } catch (error) {
-      Alert.alert('Error', 'No se pudo imprimir');
+      showToast('Error al imprimir', 'error');
     }
   };
   
@@ -141,12 +168,20 @@ export default function ProfileScreen({ navigation }) {
         }
       >
         <View style={styles.content}>
-          <View style={styles.statusBar}>
+          <TouchableOpacity 
+            style={styles.statusBar}
+            onPress={!isConnected ? handleReconnect : null}
+            disabled={isConnected}
+            activeOpacity={isConnected ? 1 : 0.6}
+          >
             <View style={[styles.statusDot, isConnected ? styles.connected : styles.disconnected]} />
             <Text style={styles.statusText}>
-              {isConnected ? 'Conectado' : 'Sin conexión'} • Arrastra para actualizar
+              {isConnected ? 'Conectado' : connectionError || 'Sin conexión'}
             </Text>
-          </View>
+            {!isConnected && (
+              <Text style={styles.retryText}> • Tocar para reintentar</Text>
+            )}
+          </TouchableOpacity>
           
           {todayTotal > 0 && (
             <View style={styles.todayBox}>
@@ -210,7 +245,8 @@ const styles = StyleSheet.create({
   statusDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   connected: { backgroundColor: '#00CC00' },
   disconnected: { backgroundColor: '#FF0000' },
-  statusText: { fontSize: 12, color: '#999' },
+  statusText: { fontSize: 12, color: '#666' },
+  retryText: { fontSize: 12, color: '#F7931A' },
   todayBox: {
     backgroundColor: '#FFF3E0',
     paddingHorizontal: 20,

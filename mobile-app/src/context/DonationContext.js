@@ -1,9 +1,13 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { getNostrKeys, getDonations, addDonation } from '../utils/storage';
 import { createNostrClient, subscribeToZaps } from '../services/nostr';
 
 const DonationContext = createContext();
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 5000;
 
 export function DonationProvider({ children }) {
   const [currentDonation, setCurrentDonation] = useState(null);
@@ -11,18 +15,52 @@ export function DonationProvider({ children }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [connectionError, setConnectionError] = useState(null);
+  
   const subscriptionRef = useRef(null);
   const ndkRef = useRef(null);
+  const retryCountRef = useRef(0);
+  const retryTimeoutRef = useRef(null);
+  const appStateRef = useRef(AppState.currentState);
   
   useEffect(() => {
     initializeApp();
     
+    // Escuchar cambios de estado de la app (background/foreground)
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
     return () => {
-      if (subscriptionRef.current) {
-        subscriptionRef.current.stop();
-      }
+      subscription.remove();
+      cleanup();
     };
   }, []);
+  
+  // Limpia suscripciones y timeouts
+  const cleanup = () => {
+    if (subscriptionRef.current) {
+      try {
+        subscriptionRef.current.stop();
+      } catch (e) {}
+    }
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+    }
+  };
+  
+  // Cuando la app vuelve al frente, verificar conexión
+  const handleAppStateChange = (nextAppState) => {
+    if (
+      appStateRef.current.match(/inactive|background/) &&
+      nextAppState === 'active'
+    ) {
+      console.log('📱 App volvió al frente, verificando conexión...');
+      if (!isConnected) {
+        retryCountRef.current = 0;
+        connectToNostr();
+      }
+    }
+    appStateRef.current = nextAppState;
+  };
   
   const initializeApp = async () => {
     await loadSavedDonations();
@@ -47,18 +85,24 @@ export function DonationProvider({ children }) {
       const keys = await getNostrKeys();
       if (!keys) {
         console.log('⚠️ No hay llaves, no se puede conectar a Nostr');
+        setConnectionError('No hay cuenta configurada');
         return false;
       }
       
       // Desconectar suscripción anterior si existe
       if (subscriptionRef.current) {
-        subscriptionRef.current.stop();
+        try {
+          subscriptionRef.current.stop();
+        } catch (e) {}
       }
       
       console.log('🔌 Conectando a Nostr...');
+      setConnectionError(null);
+      
       const ndk = await createNostrClient(keys.privateKey);
       ndkRef.current = ndk;
       setIsConnected(true);
+      retryCountRef.current = 0;
       console.log('✅ Conectado a Nostr');
       
       subscriptionRef.current = subscribeToZaps(ndk, keys.npub, handleNewZap);
@@ -68,21 +112,46 @@ export function DonationProvider({ children }) {
     } catch (error) {
       console.error('❌ Error connecting to Nostr:', error);
       setIsConnected(false);
+      setConnectionError('Error de conexión');
+      
+      scheduleRetry();
       return false;
     }
   };
   
+  // Programa un reintento automático
+  const scheduleRetry = () => {
+    if (retryCountRef.current < MAX_RETRIES) {
+      retryCountRef.current += 1;
+      console.log(`🔄 Reintento ${retryCountRef.current}/${MAX_RETRIES} en ${RETRY_DELAY / 1000}s...`);
+      
+      retryTimeoutRef.current = setTimeout(() => {
+        connectToNostr();
+      }, RETRY_DELAY);
+    } else {
+      console.log('❌ Máximo de reintentos alcanzado');
+      setConnectionError('No se pudo conectar. Toca para reintentar.');
+    }
+  };
+  
+  // Reconexión manual (cuando el usuario toca)
+  const manualReconnect = async () => {
+    console.log('🔄 Reconexión manual...');
+    retryCountRef.current = 0;
+    setConnectionError(null);
+    return await connectToNostr();
+  };
+  
+  // Pull-to-refresh
   const refresh = async () => {
     setIsRefreshing(true);
     console.log('🔄 Refrescando...');
     
-    // Recargar donaciones guardadas
     await loadSavedDonations();
     
-    // Reconectar a Nostr
+    retryCountRef.current = 0;
     const connected = await connectToNostr();
     
-    // Vibración suave para indicar que terminó
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     setIsRefreshing(false);
@@ -92,23 +161,25 @@ export function DonationProvider({ children }) {
   };
   
   const handleNewZap = async (zapInfo) => {
-    const donation = {
-      id: Date.now().toString(),
-      sender: zapInfo.sender === 'Anónimo' ? 'Anónimo' : zapInfo.sender.substring(0, 8),
-      amount: zapInfo.amount,
-      timestamp: zapInfo.timestamp || Math.floor(Date.now() / 1000),
-      date: new Date().toISOString().split('T')[0],
-    };
-    
-    // Vibración fuerte para notificar donación
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    // Guardar en storage y actualizar estado
-    const updatedDonations = await addDonation(donation);
-    setDonations(updatedDonations);
-    setCurrentDonation(donation);
-    
-    console.log(`💰 Nueva donación: ${donation.amount} sats de ${donation.sender}`);
+    try {
+      const donation = {
+        id: Date.now().toString(),
+        sender: zapInfo.sender === 'Anónimo' ? 'Anónimo' : zapInfo.sender.substring(0, 8),
+        amount: zapInfo.amount,
+        timestamp: zapInfo.timestamp || Math.floor(Date.now() / 1000),
+        date: new Date().toISOString().split('T')[0],
+      };
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      const updatedDonations = await addDonation(donation);
+      setDonations(updatedDonations);
+      setCurrentDonation(donation);
+      
+      console.log(`💰 Nueva donación: ${donation.amount} sats de ${donation.sender}`);
+    } catch (error) {
+      console.error('Error processing zap:', error);
+    }
   };
   
   const clearCurrentDonation = () => {
@@ -140,21 +211,24 @@ export function DonationProvider({ children }) {
   };
   
   const simulateDonation = async () => {
-    const nombres = ['Carlos', 'María', 'Juan', 'Ana', 'Pedro', 'Sofía', 'Luis', 'Carmen'];
-    const testDonation = {
-      id: Date.now().toString(),
-      sender: nombres[Math.floor(Math.random() * nombres.length)],
-      amount: Math.floor(Math.random() * 1000) + 100,
-      timestamp: Math.floor(Date.now() / 1000),
-      date: new Date().toISOString().split('T')[0],
-    };
-    
-    // Vibración para simular donación real
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    
-    const updatedDonations = await addDonation(testDonation);
-    setDonations(updatedDonations);
-    setCurrentDonation(testDonation);
+    try {
+      const nombres = ['Carlos', 'María', 'Juan', 'Ana', 'Pedro', 'Sofía', 'Luis', 'Carmen'];
+      const testDonation = {
+        id: Date.now().toString(),
+        sender: nombres[Math.floor(Math.random() * nombres.length)],
+        amount: Math.floor(Math.random() * 1000) + 100,
+        timestamp: Math.floor(Date.now() / 1000),
+        date: new Date().toISOString().split('T')[0],
+      };
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      const updatedDonations = await addDonation(testDonation);
+      setDonations(updatedDonations);
+      setCurrentDonation(testDonation);
+    } catch (error) {
+      console.error('Error simulating donation:', error);
+    }
   };
   
   return (
@@ -166,7 +240,9 @@ export function DonationProvider({ children }) {
         isConnected,
         isLoading,
         isRefreshing,
+        connectionError,
         refresh,
+        manualReconnect,
         getTodayDonations,
         getTotalToday,
         getTotalAll,
