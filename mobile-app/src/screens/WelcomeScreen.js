@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { getNostrKeys, getUserProfile } from '../utils/storage';
+import { getNostrKeys, getUserProfile, isPinEnabled } from '../utils/storage';
 
 export default function WelcomeScreen({ navigation }) {
   const [checking, setChecking] = useState(true);
@@ -13,12 +13,22 @@ export default function WelcomeScreen({ navigation }) {
     try {
       const keys = await getNostrKeys();
       const profile = await getUserProfile();
+      const pinEnabled = await isPinEnabled();
       
       if (keys && profile) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Profile' }],
-        });
+        // Si tiene cuenta y PIN habilitado, pedir PIN
+        if (pinEnabled) {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'PinLogin' }],
+          });
+        } else {
+          // Si tiene cuenta pero no PIN, ir directo al perfil
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'Profile' }],
+          });
+        }
         return;
       }
       

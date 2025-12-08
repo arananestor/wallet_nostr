@@ -1,12 +1,20 @@
 import { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityIndicator, Modal } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Header from '../components/Header';
-import { getNostrKeys, getUserProfile, saveUserProfile, clearAllData } from '../utils/storage';
+import PinInput from '../components/PinInput';
+import { getNostrKeys, getUserProfile, saveUserProfile, clearAllData, verifyPin, isPinEnabled, disablePin } from '../utils/storage';
 import { createNostrClient, publishProfile } from '../services/nostr';
+import { useToast } from '../context/ToastContext';
 
 export default function SettingsScreen({ navigation }) {
   const [newAddress, setNewAddress] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinAction, setPinAction] = useState(null); // 'showKeys' | 'disablePin'
+  
+  const { showToast } = useToast();
   
   const validateLightningAddress = (addr) => {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -15,7 +23,7 @@ export default function SettingsScreen({ navigation }) {
   
   const handleUpdateAddress = async () => {
     if (!validateLightningAddress(newAddress)) {
-      Alert.alert('Error', 'Dirección inválida');
+      showToast('Dirección inválida', 'error');
       return;
     }
     
@@ -40,22 +48,78 @@ export default function SettingsScreen({ navigation }) {
       
       setLoading(false);
       setNewAddress('');
-      Alert.alert('Éxito', 'Dirección actualizada');
+      showToast('Dirección actualizada', 'success');
       
     } catch (error) {
       setLoading(false);
-      Alert.alert('Error', 'No se pudo actualizar');
+      showToast('No se pudo actualizar', 'error');
       console.error(error);
     }
   };
   
-  const handleShowBackup = async () => {
+  const requestPinVerification = (action) => {
+    setPinAction(action);
+    setShowPinModal(true);
+    setPin('');
+  };
+  
+  const handlePinVerification = async (newPin) => {
+    setPin(newPin);
+    
+    if (newPin.length === 6) {
+      const isValid = await verifyPin(newPin);
+      
+      if (isValid) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setShowPinModal(false);
+        setPin('');
+        
+        if (pinAction === 'showKeys') {
+          await showBackupKeys();
+        } else if (pinAction === 'disablePin') {
+          await handleDisablePin();
+        }
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        showToast('PIN incorrecto', 'error');
+        setPin('');
+      }
+    }
+  };
+  
+  const showBackupKeys = async () => {
     const keys = await getNostrKeys();
     Alert.alert(
       'Tu clave privada (nsec)',
       `${keys.nsec}\n\nGuárdala en un lugar seguro. Nunca la compartas.`,
       [{ text: 'OK' }]
     );
+  };
+  
+  const handleDisablePin = async () => {
+    await disablePin();
+    showToast('PIN deshabilitado', 'success');
+  };
+  
+  const handleShowBackup = async () => {
+    const pinEnabled = await isPinEnabled();
+    
+    if (pinEnabled) {
+      requestPinVerification('showKeys');
+    } else {
+      await showBackupKeys();
+    }
+  };
+  
+  const handleDisablePinRequest = async () => {
+    const pinEnabled = await isPinEnabled();
+    
+    if (!pinEnabled) {
+      showToast('PIN no está habilitado', 'warning');
+      return;
+    }
+    
+    requestPinVerification('disablePin');
   };
   
   const handleLogout = () => {
@@ -113,6 +177,19 @@ export default function SettingsScreen({ navigation }) {
           <TouchableOpacity style={styles.optionButton} onPress={handleShowBackup}>
             <Text style={styles.optionText}>🔑 Ver clave privada</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.optionButton} onPress={() => navigation.navigate('SetupPin', {
+            onComplete: () => {
+              showToast('PIN actualizado', 'success');
+              navigation.goBack();
+            }
+          })}>
+            <Text style={styles.optionText}>🔢 Cambiar PIN</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.optionButton} onPress={handleDisablePinRequest}>
+            <Text style={styles.optionText}>🔓 Deshabilitar PIN</Text>
+          </TouchableOpacity>
         </View>
         
         <View style={styles.section}>
@@ -123,28 +200,45 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
+      
+      {/* Modal de verificación de PIN */}
+      <Modal
+        visible={showPinModal}
+        transparent
+        animationType="slide"
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Verificar PIN</Text>
+            <Text style={styles.modalSubtitle}>Ingresa tu PIN para continuar</Text>
+            
+            <PinInput
+              pin={pin}
+              onPinChange={handlePinVerification}
+              maxLength={6}
+            />
+            
+            <TouchableOpacity 
+              style={styles.modalCancelButton}
+              onPress={() => {
+                setShowPinModal(false);
+                setPin('');
+              }}
+            >
+              <Text style={styles.modalCancelText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { flex: 1, padding: 20 },
+  section: { marginBottom: 30 },
+  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 15 },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
@@ -153,30 +247,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 10,
   },
-  button: {
-    backgroundColor: '#F7931A',
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  optionButton: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  optionText: {
-    fontSize: 16,
-    color: '#333',
-  },
+  button: { backgroundColor: '#F7931A', paddingVertical: 12, borderRadius: 8 },
+  buttonDisabled: { backgroundColor: '#ccc' },
+  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
+  optionButton: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 8, marginBottom: 10 },
+  optionText: { fontSize: 16, color: '#333' },
   dangerButton: {
     backgroundColor: '#fff',
     padding: 15,
@@ -184,9 +259,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#ff4444',
   },
-  dangerText: {
-    fontSize: 16,
-    color: '#ff4444',
-    textAlign: 'center',
+  dangerText: { fontSize: 16, color: '#ff4444', textAlign: 'center' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 30,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
+  modalSubtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 30 },
+  modalCancelButton: { marginTop: 20, padding: 15 },
+  modalCancelText: { fontSize: 16, color: '#F7931A', textAlign: 'center' },
 });

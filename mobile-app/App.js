@@ -14,6 +14,8 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import RestoreScreen from './src/screens/RestoreScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
+import SetupPinScreen from './src/screens/SetupPinScreen';
+import PinLoginScreen from './src/screens/PinLoginScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -33,6 +35,8 @@ export default function App() {
             <Stack.Screen name="Settings" component={SettingsScreen} />
             <Stack.Screen name="Restore" component={RestoreScreen} />
             <Stack.Screen name="History" component={HistoryScreen} />
+            <Stack.Screen name="SetupPin" component={SetupPinScreen} />
+            <Stack.Screen name="PinLogin" component={PinLoginScreen} />
           </Stack.Navigator>
         </NavigationContainer>
       </DonationProvider>

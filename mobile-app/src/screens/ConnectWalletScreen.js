@@ -197,9 +197,13 @@ export default function ConnectWalletScreen({ route, navigation }) {
       setLoading(false);
       showToast('¡Perfil creado!', 'success');
       
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Profile' }],
+      navigation.navigate('SetupPin', {
+        onComplete: () => {
+          navigation.reset({
+            index: 0,
+            routes: [{ name: 'profile' }],
+          });
+        },
       });
       
     } catch (error) {

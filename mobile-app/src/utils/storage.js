@@ -1,9 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Crypto from 'expo-crypto';
 
 const KEYS = {
   NOSTR_KEYS: 'nostr_keys',
   USER_PROFILE: 'user_profile',
   DONATIONS: 'donations',
+  PIN_HASH: 'pin_hash',
+  PIN_ENABLED: 'pin_enabled',
 };
 
 // === LLAVES NOSTR ===
@@ -78,6 +81,66 @@ export async function addDonation(donation) {
   }
 }
 
+// === PIN DE SEGURIDAD ===
+
+export async function hashPin(pin) {
+  try {
+    const hash = await Crypto.digestStringAsync(
+      Crypto.CryptoDigestAlgorithm.SHA256,
+      pin
+    );
+    return hash;
+  } catch (error) {
+    console.error('Error hashing PIN:', error);
+    return null;
+  }
+}
+
+export async function savePinHash(pin) {
+  try {
+    const hash = await hashPin(pin);
+    if (hash) {
+      await AsyncStorage.setItem(KEYS.PIN_HASH, hash);
+      await AsyncStorage.setItem(KEYS.PIN_ENABLED, 'true');
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error saving PIN hash:', error);
+    return false;
+  }
+}
+
+export async function verifyPin(pin) {
+  try {
+    const savedHash = await AsyncStorage.getItem(KEYS.PIN_HASH);
+    if (!savedHash) return false;
+    
+    const inputHash = await hashPin(pin);
+    return inputHash === savedHash;
+  } catch (error) {
+    console.error('Error verifying PIN:', error);
+    return false;
+  }
+}
+
+export async function isPinEnabled() {
+  try {
+    const enabled = await AsyncStorage.getItem(KEYS.PIN_ENABLED);
+    return enabled === 'true';
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function disablePin() {
+  try {
+    await AsyncStorage.multiRemove([KEYS.PIN_HASH, KEYS.PIN_ENABLED]);
+  } catch (error) {
+    console.error('Error disabling PIN:', error);
+  }
+}
+
 // === LIMPIAR TODO ===
 
 export async function clearAllData() {
@@ -86,6 +149,8 @@ export async function clearAllData() {
       KEYS.NOSTR_KEYS,
       KEYS.USER_PROFILE,
       KEYS.DONATIONS,
+      KEYS.PIN_HASH,
+      KEYS.PIN_ENABLED,
     ]);
   } catch (error) {
     console.error('Error clearing data:', error);
