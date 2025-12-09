@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityInd
 import * as Haptics from 'expo-haptics';
 import Header from '../components/Header';
 import PinInput from '../components/PinInput';
-import { getNostrKeys, getUserProfile, saveUserProfile, clearAllData, verifyPin, isPinEnabled, disablePin } from '../utils/storage';
+import { getNostrKeys, getUserProfile, saveUserProfile, clearAllData, verifyPin, isPinEnabled } from '../utils/storage';
 import { createNostrClient, publishProfile } from '../services/nostr';
 import { useToast } from '../context/ToastContext';
 
@@ -12,7 +12,6 @@ export default function SettingsScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState('');
-  const [pinAction, setPinAction] = useState(null); // 'showKeys' | 'disablePin'
   
   const { showToast } = useToast();
   
@@ -57,8 +56,7 @@ export default function SettingsScreen({ navigation }) {
     }
   };
   
-  const requestPinVerification = (action) => {
-    setPinAction(action);
+  const requestPinVerification = () => {
     setShowPinModal(true);
     setPin('');
   };
@@ -73,12 +71,7 @@ export default function SettingsScreen({ navigation }) {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowPinModal(false);
         setPin('');
-        
-        if (pinAction === 'showKeys') {
-          await showBackupKeys();
-        } else if (pinAction === 'disablePin') {
-          await handleDisablePin();
-        }
+        await showBackupKeys();
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         showToast('PIN incorrecto', 'error');
@@ -96,30 +89,14 @@ export default function SettingsScreen({ navigation }) {
     );
   };
   
-  const handleDisablePin = async () => {
-    await disablePin();
-    showToast('PIN deshabilitado', 'success');
-  };
-  
   const handleShowBackup = async () => {
     const pinEnabled = await isPinEnabled();
     
     if (pinEnabled) {
-      requestPinVerification('showKeys');
+      requestPinVerification();
     } else {
       await showBackupKeys();
     }
-  };
-  
-  const handleDisablePinRequest = async () => {
-    const pinEnabled = await isPinEnabled();
-    
-    if (!pinEnabled) {
-      showToast('PIN no está habilitado', 'warning');
-      return;
-    }
-    
-    requestPinVerification('disablePin');
   };
   
   const handleLogout = () => {
@@ -185,10 +162,6 @@ export default function SettingsScreen({ navigation }) {
             }
           })}>
             <Text style={styles.optionText}>🔢 Cambiar PIN</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.optionButton} onPress={handleDisablePinRequest}>
-            <Text style={styles.optionText}>🔓 Deshabilitar PIN</Text>
           </TouchableOpacity>
         </View>
         
