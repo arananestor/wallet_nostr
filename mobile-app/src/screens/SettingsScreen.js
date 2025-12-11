@@ -99,6 +99,43 @@ export default function SettingsScreen({ navigation }) {
     }
   };
   
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      '⚠️ Eliminar cuenta',
+      '¿Estás COMPLETAMENTE SEGURO?\n\nSe eliminarán:\n• Tus llaves\n• Tu perfil\n• Tu historial de donaciones\n• Tu PIN\n\nEsta acción NO se puede deshacer.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sí, eliminar TODO', 
+          style: 'destructive',
+          onPress: confirmDeleteAccount
+        },
+      ]
+    );
+  };
+  
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      '🔴 Última confirmación',
+      '¿De verdad quieres eliminar tu cuenta?\n\nGuarda tus 12 palabras si quieres recuperarla después.',
+      [
+        { text: 'No, cancelar', style: 'cancel' },
+        { 
+          text: 'SÍ, ELIMINAR', 
+          style: 'destructive',
+          onPress: async () => {
+            await clearAllData();
+            showToast('Cuenta eliminada', 'success');
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Welcome' }],
+            });
+          }
+        },
+      ]
+    );
+  };
+  
   const handleLogout = () => {
     Alert.alert(
       'Cerrar sesión',
@@ -171,6 +208,10 @@ export default function SettingsScreen({ navigation }) {
           <TouchableOpacity style={styles.dangerButton} onPress={handleLogout}>
             <Text style={styles.dangerText}>Cerrar sesión</Text>
           </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+            <Text style={styles.deleteText}>🗑️ Eliminar cuenta permanentemente</Text>
+          </TouchableOpacity>
         </View>
       </View>
       
@@ -231,8 +272,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#ff4444',
+    marginBottom: 10,
   },
   dangerText: { fontSize: 16, color: '#ff4444', textAlign: 'center' },
+  deleteBut: {
+    backgroundColor: '#ff4444',
+    padding: 15,
+    borderRadius: 8,
+  },
+  deleteText: { fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
