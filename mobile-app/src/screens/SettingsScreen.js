@@ -210,7 +210,7 @@ export default function SettingsScreen({ navigation }) {
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
-            <Text style={styles.deleteText}>🗑️ Eliminar cuenta permanentemente</Text>
+            <Text style={styles.deleteText}>Eliminar cuenta</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -275,12 +275,21 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   dangerText: { fontSize: 16, color: '#ff4444', textAlign: 'center' },
-  deleteBut: {
-    backgroundColor: '#ff4444',
+  deleteButton: {
+    backgroundColor: 'transparent',
     padding: 15,
     borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#ff4444',
+    marginTop: 10,
   },
-  deleteText: { fontSize: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold' },
+  deleteText: { 
+    fontSize: 16, 
+    color: '#ff4444', 
+    textAlign: 'center', 
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
