@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
 
 export default function DonationAlert({ donation, onComplete }) {
   const slideAnim = useRef(new Animated.Value(-150)).current;
@@ -13,7 +14,10 @@ export default function DonationAlert({ donation, onComplete }) {
     }
   }, [donation]);
   
-  const showAlert = () => {
+  const showAlert = async () => {
+    // Vibración fuerte tipo "Success" - muy distintiva
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
     Animated.parallel([
       Animated.spring(slideAnim, {
         toValue: 50,
@@ -38,12 +42,13 @@ export default function DonationAlert({ donation, onComplete }) {
   };
   
   const speakDonation = () => {
-    const message = `${donation.sender} donó ${donation.amount} sats`;
+    // Agregamos signos de exclamación y hacemos la voz más llamativa
+    const message = `¡${donation.sender} donó ${donation.amount} sats!`;
     
     Speech.speak(message, {
       language: 'es-MX',
-      pitch: 1.1,
-      rate: 0.9,
+      pitch: 1.3,      // Más agudo = más llamativo (antes era 1.1)
+      rate: 1.0,       // Velocidad normal para claridad (antes era 0.9)
       onDone: () => {
         hideAlert();
       },
