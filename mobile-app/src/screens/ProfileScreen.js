@@ -207,11 +207,11 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.address}>{profile.lightningAddress}</Text>
           
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.button} onPress={handleShare}>
+            <TouchableOpacity style={styles.button} onPress={handleShare} activeOpacity={0.7}>
               <Text style={styles.buttonText}>Compartir</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.buttonSecondary} onPress={handlePrint}>
+            <TouchableOpacity style={styles.buttonSecondary} onPress={handlePrint} activeOpacity={0.7}>
               <Text style={styles.buttonSecondaryText}>Imprimir</Text>
             </TouchableOpacity>
           </View>
@@ -227,7 +227,7 @@ export default function ProfileScreen({ navigation }) {
           </View>
           
           {/* BOTÓN DE PRUEBA - QUITAR EN PRODUCCIÓN */}
-          <TouchableOpacity style={styles.testButton} onPress={simulateDonation}>
+          <TouchableOpacity style={styles.testButton} onPress={simulateDonation} activeOpacity={0.8}>
             <Text style={styles.testButtonText}>🧪 Simular Donación (TEST)</Text>
           </TouchableOpacity>
         </View>

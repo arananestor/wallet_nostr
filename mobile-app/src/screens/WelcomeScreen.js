@@ -4,6 +4,7 @@ import { getNostrKeys, getUserProfile, isPinEnabled } from '../utils/storage';
 
 export default function WelcomeScreen({ navigation }) {
   const [checking, setChecking] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
   
   useEffect(() => {
     checkExistingUser();
@@ -16,14 +17,12 @@ export default function WelcomeScreen({ navigation }) {
       const pinEnabled = await isPinEnabled();
       
       if (keys && profile) {
-        // Si tiene cuenta y PIN habilitado, pedir PIN
         if (pinEnabled) {
           navigation.reset({
             index: 0,
             routes: [{ name: 'PinLogin' }],
           });
         } else {
-          // Si tiene cuenta pero no PIN, ir directo al perfil
           navigation.reset({
             index: 0,
             routes: [{ name: 'Profile' }],
@@ -33,17 +32,25 @@ export default function WelcomeScreen({ navigation }) {
       }
       
       setChecking(false);
+      setShowWelcome(true);
     } catch (error) {
       setChecking(false);
+      setShowWelcome(true);
     }
   };
   
   if (checking) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#F7931A" />
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingEmoji}>💰</Text>
+        <ActivityIndicator size="large" color="#F7931A" style={styles.loader} />
+        <Text style={styles.loadingText}>Cargando...</Text>
       </View>
     );
+  }
+  
+  if (!showWelcome) {
+    return null;
   }
   
   return (
@@ -72,6 +79,23 @@ export default function WelcomeScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingEmoji: {
+    fontSize: 80,
+    marginBottom: 20,
+  },
+  loader: {
+    marginBottom: 15,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#666',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',

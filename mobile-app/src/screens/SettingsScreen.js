@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityIndicator, Modal } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Header from '../components/Header';
@@ -9,11 +9,23 @@ import { useToast } from '../context/ToastContext';
 
 export default function SettingsScreen({ navigation }) {
   const [newAddress, setNewAddress] = useState('');
+  const [currentAddress, setCurrentAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState('');
   
   const { showToast } = useToast();
+  
+  useEffect(() => {
+    loadCurrentAddress();
+  }, []);
+  
+  const loadCurrentAddress = async () => {
+    const profile = await getUserProfile();
+    if (profile?.lightningAddress) {
+      setCurrentAddress(profile.lightningAddress);
+    }
+  };
   
   const validateLightningAddress = (addr) => {
     const regex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -45,6 +57,7 @@ export default function SettingsScreen({ navigation }) {
         lightningAddress: newAddress,
       });
       
+      setCurrentAddress(newAddress);
       setLoading(false);
       setNewAddress('');
       showToast('Dirección actualizada', 'success');
@@ -163,7 +176,16 @@ export default function SettingsScreen({ navigation }) {
       
       <View style={styles.content}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Cambiar Lightning Address</Text>
+          <Text style={styles.sectionTitle}>Lightning Address</Text>
+          
+          {currentAddress && (
+            <View style={styles.currentAddressBox}>
+              <Text style={styles.currentAddressLabel}>Actual:</Text>
+              <Text style={styles.currentAddressText}>{currentAddress}</Text>
+            </View>
+          )}
+          
+          <Text style={styles.changeLabel}>Cambiar a:</Text>
           <TextInput
             style={styles.input}
             placeholder="nueva@direccion.com"
@@ -215,7 +237,6 @@ export default function SettingsScreen({ navigation }) {
         </View>
       </View>
       
-      {/* Modal de verificación de PIN */}
       <Modal
         visible={showPinModal}
         transparent
@@ -253,6 +274,29 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
   section: { marginBottom: 30 },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 15 },
+  currentAddressBox: {
+    backgroundColor: '#f9f9f9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 15,
+    borderLeftWidth: 3,
+    borderLeftColor: '#F7931A',
+  },
+  currentAddressLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  currentAddressText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  changeLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ddd',
