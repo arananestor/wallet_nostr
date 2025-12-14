@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityIndicator, Modal } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, TextInput, ActivityIndicator, Modal, ScrollView } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Header from '../components/Header';
 import PinInput from '../components/PinInput';
@@ -114,7 +115,7 @@ export default function SettingsScreen({ navigation }) {
   
   const handleDeleteAccount = () => {
     Alert.alert(
-      '⚠️ Eliminar cuenta',
+      'Eliminar cuenta',
       '¿Estás COMPLETAMENTE SEGURO?\n\nSe eliminarán:\n• Tus llaves\n• Tu perfil\n• Tu historial de donaciones\n• Tu PIN\n\nEsta acción NO se puede deshacer.',
       [
         { text: 'Cancelar', style: 'cancel' },
@@ -129,7 +130,7 @@ export default function SettingsScreen({ navigation }) {
   
   const confirmDeleteAccount = () => {
     Alert.alert(
-      '🔴 Última confirmación',
+      'Última confirmación',
       '¿De verdad quieres eliminar tu cuenta?\n\nGuarda tus 12 palabras si quieres recuperarla después.',
       [
         { text: 'No, cancelar', style: 'cancel' },
@@ -174,13 +175,13 @@ export default function SettingsScreen({ navigation }) {
     <View style={styles.container}>
       <Header title="Configuración" />
       
-      <View style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Lightning Address</Text>
           
           {currentAddress && (
             <View style={styles.currentAddressBox}>
-              <Text style={styles.currentAddressLabel}>Actual:</Text>
+              <Text style={styles.currentAddressLabel}>Actual</Text>
               <Text style={styles.currentAddressText}>{currentAddress}</Text>
             </View>
           )}
@@ -189,20 +190,22 @@ export default function SettingsScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="nueva@direccion.com"
+            placeholderTextColor="#94A3B8"
             value={newAddress}
             onChangeText={setNewAddress}
             autoCapitalize="none"
             keyboardType="email-address"
           />
           <TouchableOpacity 
-            style={[styles.button, loading && styles.buttonDisabled]} 
+            style={[styles.updateButton, loading && styles.buttonDisabled]} 
             onPress={handleUpdateAddress}
             disabled={loading}
+            activeOpacity={0.7}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.buttonText}>Actualizar</Text>
+              <Text style={styles.updateButtonText}>Actualizar</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -210,32 +213,50 @@ export default function SettingsScreen({ navigation }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Seguridad</Text>
           
-          <TouchableOpacity style={styles.optionButton} onPress={handleShowBackup}>
-            <Text style={styles.optionText}>🔑 Ver clave privada</Text>
+          <TouchableOpacity style={styles.optionButton} onPress={handleShowBackup} activeOpacity={0.7}>
+            <View style={styles.optionLeft}>
+              <View style={styles.optionIconContainer}>
+                <Ionicons name="key-outline" size={22} color="#6366F1" />
+              </View>
+              <Text style={styles.optionText}>Ver clave privada</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.optionButton} onPress={() => navigation.navigate('SetupPin', {
-            onComplete: () => {
-              showToast('PIN actualizado', 'success');
-              navigation.goBack();
-            }
-          })}>
-            <Text style={styles.optionText}>🔢 Cambiar PIN</Text>
+          <TouchableOpacity 
+            style={styles.optionButton} 
+            onPress={() => navigation.navigate('SetupPin', {
+              onComplete: () => {
+                showToast('PIN actualizado', 'success');
+                navigation.goBack();
+              }
+            })}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View style={styles.optionIconContainer}>
+                <Ionicons name="lock-closed-outline" size={22} color="#6366F1" />
+              </View>
+              <Text style={styles.optionText}>Cambiar PIN</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
         
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           
-          <TouchableOpacity style={styles.dangerButton} onPress={handleLogout}>
-            <Text style={styles.dangerText}>Cerrar sesión</Text>
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
+            <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+            <Text style={styles.logoutText}>Cerrar sesión</Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount} activeOpacity={0.7}>
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
             <Text style={styles.deleteText}>Eliminar cuenta</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
       
       <Modal
         visible={showPinModal}
@@ -259,6 +280,7 @@ export default function SettingsScreen({ navigation }) {
                 setShowPinModal(false);
                 setPin('');
               }}
+              activeOpacity={0.7}
             >
               <Text style={styles.modalCancelText}>Cancelar</Text>
             </TouchableOpacity>
@@ -270,85 +292,129 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
   content: { flex: 1, padding: 20 },
-  section: { marginBottom: 30 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', marginBottom: 15 },
+  section: { marginBottom: 32 },
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
   currentAddressBox: {
-    backgroundColor: '#f9f9f9',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 15,
+    backgroundColor: '#EEF2FF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
     borderLeftWidth: 3,
-    borderLeftColor: '#F7931A',
+    borderLeftColor: '#6366F1',
   },
   currentAddressLabel: {
     fontSize: 12,
-    color: '#666',
-    marginBottom: 4,
+    color: '#6366F1',
+    marginBottom: 6,
+    fontWeight: '600',
   },
   currentAddressText: {
     fontSize: 14,
-    color: '#333',
+    color: '#1E293B',
     fontWeight: '500',
   },
   changeLabel: {
     fontSize: 14,
-    color: '#666',
+    color: '#64748B',
     marginBottom: 8,
+    fontWeight: '500',
   },
   input: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 15,
-    fontSize: 16,
-    marginBottom: 10,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 15,
+    color: '#1E293B',
+    marginBottom: 12,
   },
-  button: { backgroundColor: '#F7931A', paddingVertical: 12, borderRadius: 8 },
-  buttonDisabled: { backgroundColor: '#ccc' },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold', textAlign: 'center' },
-  optionButton: { backgroundColor: '#f5f5f5', padding: 15, borderRadius: 8, marginBottom: 10 },
-  optionText: { fontSize: 16, color: '#333' },
-  dangerButton: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 8,
+  updateButton: { 
+    backgroundColor: '#6366F1', 
+    paddingVertical: 14, 
+    borderRadius: 12,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  buttonDisabled: { backgroundColor: '#CBD5E1', shadowOpacity: 0 },
+  updateButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', textAlign: 'center' },
+  optionButton: { 
+    backgroundColor: '#FFFFFF', 
+    padding: 16,
+    borderRadius: 12, 
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  optionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  optionIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  optionText: { fontSize: 15, color: '#1E293B', fontWeight: '500' },
+  logoutButton: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#ff4444',
-    marginBottom: 10,
+    borderColor: '#FEE2E2',
   },
-  dangerText: { fontSize: 16, color: '#ff4444', textAlign: 'center' },
+  logoutText: { fontSize: 15, color: '#EF4444', marginLeft: 8, fontWeight: '600' },
   deleteButton: {
     backgroundColor: 'transparent',
-    padding: 15,
-    borderRadius: 8,
+    padding: 16,
+    borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#ff4444',
-    marginTop: 10,
+    borderColor: '#EF4444',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
   },
   deleteText: { 
-    fontSize: 16, 
-    color: '#ff4444', 
-    textAlign: 'center', 
+    fontSize: 15, 
+    color: '#EF4444', 
+    marginLeft: 8,
     fontWeight: '600',
-    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 30,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 32,
     width: '90%',
     maxWidth: 400,
   },
-  modalTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-  modalSubtitle: { fontSize: 14, color: '#666', textAlign: 'center', marginBottom: 30 },
-  modalCancelButton: { marginTop: 20, padding: 15 },
-  modalCancelText: { fontSize: 16, color: '#F7931A', textAlign: 'center' },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', textAlign: 'center', marginBottom: 8, color: '#1E293B' },
+  modalSubtitle: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 32 },
+  modalCancelButton: { marginTop: 24, padding: 16 },
+  modalCancelText: { fontSize: 16, color: '#6366F1', textAlign: 'center', fontWeight: '600' },
 });

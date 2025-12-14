@@ -1,143 +1,116 @@
-import { useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share } from 'react-native';
+import { useRoute } from '@react-navigation/native';
 import QRCode from 'react-native-qrcode-svg';
-import * as Print from 'expo-print';
-import { generateQRData } from '../services/nostr';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import Header from '../components/Header';
+import { useToast } from '../context/ToastContext';
 
-export default function QRScreen({ route }) {
-  const { npub, lightningAddress, nombre, actividad } = route.params;
-  const qrData = generateQRData(npub, lightningAddress);
-  const qrRef = useRef();
+export default function QRScreen() {
+  const route = useRoute();
+  const { nombre, qrData } = route.params || {};
+  const { showToast } = useToast();
   
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Envíame sats: ${lightningAddress}`,
+        message: `Escanea mi código QR para donar: ${nombre}`,
       });
     } catch (error) {
-      console.error(error);
-    }
-  };
-  
-  const generarMensaje = () => {
-    if (!actividad) {
-      return `Hola, soy ${nombre}`;
-    }
-    
-    const actividadLower = actividad.toLowerCase();
-    
-    if (actividadLower.includes('vendo') || actividadLower.includes('venta')) {
-      return `Yo ${actividad}. Para pagar, escanea aquí`;
-    }
-    
-    return `Yo ${actividad}. Si te gustó, dona aquí`;
-  };
-  
-  const handlePrint = async () => {
-    try {
-      qrRef.current?.toDataURL(async (dataURL) => {
-        const mensaje = generarMensaje();
-        
-        const html = `
-          <html>
-            <head>
-              <style>
-                @page {
-                  size: auto;
-                  margin: 10mm;
-                }
-                * {
-                  margin: 0;
-                  padding: 0;
-                  box-sizing: border-box;
-                }
-                html, body {
-                  height: auto;
-                  width: 100%;
-                }
-                body {
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  padding: 20px;
-                  font-family: Arial, sans-serif;
-                }
-                .container {
-                  text-align: center;
-                  max-width: 400px;
-                }
-                .nombre {
-                  font-size: 32px;
-                  font-weight: bold;
-                  margin-bottom: 10px;
-                  color: #333;
-                }
-                .mensaje {
-                  font-size: 20px;
-                  color: #666;
-                  margin-bottom: 25px;
-                  line-height: 1.4;
-                }
-                .qr-image {
-                  width: 280px;
-                  height: 280px;
-                }
-                .address {
-                  margin-top: 20px;
-                  font-size: 14px;
-                  color: #999;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <p class="nombre">${nombre}</p>
-                <p class="mensaje">${mensaje}</p>
-                <img class="qr-image" src="data:image/png;base64,${dataURL}" />
-                <p class="address">${lightningAddress}</p>
-              </div>
-            </body>
-          </html>
-        `;
-        
-        await Print.printAsync({ 
-          html,
-          orientation: Print.Orientation.portrait,
-        });
-      });
-    } catch (error) {
-      Alert.alert('Error', 'No se pudo imprimir');
-      console.error(error);
+      showToast('Error al compartir', 'error');
     }
   };
   
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tu código QR</Text>
+      <Header title="Tu código QR" />
       
-      <Text style={styles.subtitle}>
-        Muestra este código para recibir donaciones
-      </Text>
-      
-      <View style={styles.qrContainer}>
-        <QRCode
-          value={qrData}
-          size={250}
-          backgroundColor="white"
-          getRef={(ref) => (qrRef.current = ref)}
-        />
-      </View>
-      
-      <Text style={styles.address}>{lightningAddress}</Text>
-      
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.button} onPress={handleShare}>
-          <Text style={styles.buttonText}>Compartir</Text>
-        </TouchableOpacity>
+      <View style={styles.content}>
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.card}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.iconBadge}>
+              <Ionicons name="person" size={24} color="#6366F1" />
+            </View>
+            <Text style={styles.nombre}>{nombre}</Text>
+            <Text style={styles.subtitle}>Escanea para donar</Text>
+          </View>
+          
+          <View style={styles.qrContainer}>
+            <View style={styles.qrWrapper}>
+              <QRCode
+                value={qrData}
+                size={220}
+                backgroundColor="white"
+              />
+            </View>
+          </View>
+          
+          <View style={styles.instructionsBox}>
+            <Ionicons name="information-circle-outline" size={20} color="rgba(255, 255, 255, 0.9)" />
+            <Text style={styles.instructions}>
+              Muestra este código para recibir donaciones
+            </Text>
+          </View>
+        </LinearGradient>
         
-        <TouchableOpacity style={styles.buttonSecondary} onPress={handlePrint}>
-          <Text style={styles.buttonSecondaryText}>Imprimir</Text>
-        </TouchableOpacity>
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleShare}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="share-outline" size={22} color="#6366F1" />
+            </View>
+            <Text style={styles.actionText}>Compartir QR</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.actionButton}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="download-outline" size={22} color="#6366F1" />
+            </View>
+            <Text style={styles.actionText}>Descargar</Text>
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.tipsContainer}>
+          <Text style={styles.tipsTitle}>Consejos</Text>
+          
+          <View style={styles.tip}>
+            <View style={styles.tipIcon}>
+              <Ionicons name="sunny-outline" size={18} color="#F59E0B" />
+            </View>
+            <Text style={styles.tipText}>
+              Asegúrate de tener buena iluminación
+            </Text>
+          </View>
+          
+          <View style={styles.tip}>
+            <View style={styles.tipIcon}>
+              <Ionicons name="resize-outline" size={18} color="#10B981" />
+            </View>
+            <Text style={styles.tipText}>
+              Mantén el QR a la vista y sin obstrucciones
+            </Text>
+          </View>
+          
+          <View style={styles.tip}>
+            <View style={styles.tipIcon}>
+              <Ionicons name="hand-left-outline" size={18} color="#6366F1" />
+            </View>
+            <Text style={styles.tipText}>
+              Sostén el teléfono firmemente al mostrar
+            </Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -146,64 +119,141 @@ export default function QRScreen({ route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    padding: 20,
-    alignItems: 'center',
+    backgroundColor: '#F5F7FA',
   },
-  title: {
-    fontSize: 28,
+  content: {
+    flex: 1,
+    padding: 24,
+  },
+  card: {
+    borderRadius: 24,
+    padding: 28,
+    marginBottom: 24,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  iconBadge: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  nombre: {
+    fontSize: 26,
     fontWeight: 'bold',
-    marginTop: 40,
-    marginBottom: 10,
+    color: '#FFFFFF',
+    marginBottom: 6,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 40,
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '500',
   },
   qrContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  qrWrapper: {
+    backgroundColor: '#FFFFFF',
     padding: 20,
-    backgroundColor: '#fff',
     borderRadius: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 5,
-    marginBottom: 30,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  address: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 30,
-  },
-  buttonRow: {
+  instructionsBox: {
     flexDirection: 'row',
-    gap: 15,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    padding: 14,
+    borderRadius: 12,
+    gap: 10,
   },
-  button: {
-    backgroundColor: '#F7931A',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 10,
+  instructions: {
+    flex: 1,
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.95)',
+    lineHeight: 18,
+    fontWeight: '500',
   },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
   },
-  buttonSecondary: {
-    backgroundColor: '#fff',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: '#F7931A',
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  buttonSecondaryText: {
-    color: '#F7931A',
-    fontSize: 18,
-    fontWeight: 'bold',
+  actionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  actionText: {
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  tipsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tipsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  tip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 14,
+    gap: 12,
+  },
+  tipIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tipText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#475569',
+    lineHeight: 20,
   },
 });

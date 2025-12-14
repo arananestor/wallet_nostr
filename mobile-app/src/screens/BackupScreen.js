@@ -1,85 +1,161 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Share, ScrollView, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import Header from '../components/Header';
+import { useToast } from '../context/ToastContext';
 
 export default function BackupScreen({ route, navigation }) {
-  const { mnemonic, nombre, actividad, keys } = route.params;
-  const [confirmed, setConfirmed] = useState(false);
+  const params = route?.params || {};
+  const nombre = params.nombre || '';
+  const actividad = params.actividad || '';
+  const keys = params.keys || null;
   
-  const words = mnemonic.split(' ');
+  const [copied, setCopied] = useState(false);
+  const { showToast } = useToast();
+  
+  if (!keys) {
+    return (
+      <View style={styles.container}>
+        <Header title="Error" />
+        <View style={styles.content}>
+          <Text style={styles.errorText}>Error: No se encontraron las llaves.</Text>
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })}
+          >
+            <Text style={styles.buttonText}>Volver al inicio</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
   
   const handleCopy = async () => {
-    await Clipboard.setStringAsync(mnemonic);
-    Alert.alert('Copiado', 'Las 12 palabras fueron copiadas');
+    await Clipboard.setStringAsync(keys.mnemonic);
+    setCopied(true);
+    showToast('Palabras copiadas', 'success');
+    setTimeout(() => setCopied(false), 3000);
   };
   
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Mi frase de recuperación (NO COMPARTIR):\n\n${mnemonic}`,
+        message: `Mi frase de recuperación (CONFIDENCIAL):\n\n${keys.mnemonic}\n\n⚠️ NUNCA compartas esto con nadie`,
       });
     } catch (error) {
-      console.error(error);
+      showToast('Error al compartir', 'error');
     }
   };
   
   const handleContinue = () => {
-    if (!confirmed) {
-      Alert.alert('Importante', 'Confirma que guardaste tus palabras');
-      return;
-    }
-    
-    navigation.navigate('ConnectWallet', {
-      nombre,
-      actividad,
-      keys,
-    });
+    Alert.alert(
+      '¿Guardaste tus palabras?',
+      'Sin estas 12 palabras NO podrás recuperar tu cuenta si pierdes tu teléfono.',
+      [
+        { text: 'Aún no', style: 'cancel' },
+        { 
+          text: 'Sí, las guardé', 
+          onPress: () => {
+            navigation.navigate('ConnectWallet', {
+              nombre,
+              actividad,
+              keys,
+            });
+          }
+        },
+      ]
+    );
   };
+  
+  const words = keys.mnemonic.split(' ');
   
   return (
     <View style={styles.container}>
-      <Header title="Frase de recuperación" />
+      <Header title="Respaldar cuenta" />
       
-      <View style={styles.content}>
-        <Text style={styles.warning}>
-          Guarda estas 12 palabras en un lugar seguro. Si pierdes tu teléfono, las necesitarás para recuperar tu cuenta.
-        </Text>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.warningBox}>
+          <View style={styles.warningHeader}>
+            <Ionicons name="warning" size={24} color="#F59E0B" />
+            <Text style={styles.warningTitle}>Muy importante</Text>
+          </View>
+          <Text style={styles.warningText}>
+            Estas 12 palabras son la ÚNICA forma de recuperar tu cuenta. Guárdalas en un lugar seguro.
+          </Text>
+        </View>
         
         <View style={styles.wordsContainer}>
-          {words.map((word, index) => (
-            <View key={index} style={styles.wordBox}>
-              <Text style={styles.wordNumber}>{index + 1}</Text>
-              <Text style={styles.word}>{word}</Text>
-            </View>
-          ))}
+          <Text style={styles.sectionTitle}>Tus 12 palabras de recuperación</Text>
+          <View style={styles.wordsGrid}>
+            {words.map((word, index) => (
+              <View key={index} style={styles.wordCard}>
+                <Text style={styles.wordNumber}>{index + 1}</Text>
+                <Text style={styles.wordText}>{word}</Text>
+              </View>
+            ))}
+          </View>
         </View>
         
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleCopy}>
-            <Text style={styles.secondaryButtonText}>Copiar</Text>
+        <View style={styles.actions}>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleCopy}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name={copied ? "checkmark" : "copy-outline"} size={20} color={copied ? "#10B981" : "#6366F1"} />
+            </View>
+            <Text style={[styles.actionText, copied && styles.actionTextSuccess]}>
+              {copied ? 'Copiado' : 'Copiar'}
+            </Text>
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.secondaryButton} onPress={handleShare}>
-            <Text style={styles.secondaryButtonText}>Compartir</Text>
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={handleShare}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="share-outline" size={20} color="#6366F1" />
+            </View>
+            <Text style={styles.actionText}>Compartir</Text>
           </TouchableOpacity>
         </View>
         
-        <TouchableOpacity 
-          style={styles.checkboxRow} 
-          onPress={() => setConfirmed(!confirmed)}
-        >
-          <View style={[styles.checkbox, confirmed && styles.checkboxChecked]}>
-            {confirmed && <Text style={styles.checkmark}>✓</Text>}
+        <View style={styles.tipsBox}>
+          <Text style={styles.tipsTitle}>Consejos de seguridad</Text>
+          <View style={styles.tip}>
+            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+            <Text style={styles.tipText}>Escríbelas en papel</Text>
           </View>
-          <Text style={styles.checkboxText}>Ya guardé mis palabras en un lugar seguro</Text>
-        </TouchableOpacity>
-        
+          <View style={styles.tip}>
+            <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+            <Text style={styles.tipText}>Guárdalas en lugar seguro</Text>
+          </View>
+          <View style={styles.tip}>
+            <Ionicons name="close-circle" size={20} color="#EF4444" />
+            <Text style={styles.tipText}>No las compartas con nadie</Text>
+          </View>
+          <View style={styles.tip}>
+            <Ionicons name="close-circle" size={20} color="#EF4444" />
+            <Text style={styles.tipText}>No las guardes en capturas</Text>
+          </View>
+        </View>
+      </ScrollView>
+      
+      <View style={styles.footer}>
         <TouchableOpacity 
-          style={[styles.button, !confirmed && styles.buttonDisabled]} 
+          style={styles.continueButton}
           onPress={handleContinue}
+          activeOpacity={0.8}
         >
-          <Text style={styles.buttonText}>Continuar</Text>
+          <Text style={styles.continueButtonText}>Ya las guardé, continuar</Text>
+          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
     </View>
@@ -87,101 +163,174 @@ export default function BackupScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
+  content: { flex: 1 },
+  scrollContent: { padding: 24 },
+  warningBox: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 16,
     padding: 20,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#F59E0B',
   },
-  warning: {
+  warningHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  warningTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#92400E',
+  },
+  warningText: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 20,
+    color: '#92400E',
     lineHeight: 20,
   },
   wordsContainer: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 16,
+  },
+  wordsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
+    gap: 12,
   },
-  wordBox: {
+  wordCard: {
     width: '30%',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   wordNumber: {
     fontSize: 12,
-    color: '#999',
-    marginRight: 5,
-    width: 20,
+    fontWeight: '600',
+    color: '#94A3B8',
   },
-  word: {
+  wordText: {
     fontSize: 14,
-    fontWeight: '500',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  secondaryButton: {
+    fontWeight: '600',
+    color: '#1E293B',
     flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginHorizontal: 5,
   },
-  secondaryButtonText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: '#333',
+  actions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
   },
-  checkboxRow: {
+  actionButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    borderRadius: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderWidth: 2,
-    borderColor: '#F7931A',
-    borderRadius: 4,
-    marginRight: 10,
+  actionIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxChecked: {
-    backgroundColor: '#F7931A',
+  actionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#475569',
   },
-  checkmark: {
-    color: '#fff',
+  actionTextSuccess: {
+    color: '#10B981',
+  },
+  tipsBox: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  tipsTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 16,
+  },
+  tip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 12,
+  },
+  tipText: {
+    fontSize: 14,
+    color: '#475569',
+  },
+  footer: {
+    padding: 24,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  continueButton: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  continueButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
-  checkboxText: {
-    fontSize: 14,
-    flex: 1,
+  errorText: {
+    fontSize: 16,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   button: {
-    backgroundColor: '#F7931A',
-    paddingVertical: 15,
-    borderRadius: 10,
-  },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#6366F1',
+    paddingVertical: 16,
+    borderRadius: 12,
+    alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
-    textAlign: 'center',
   },
 });

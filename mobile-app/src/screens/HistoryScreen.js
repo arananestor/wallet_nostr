@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, SectionList, TouchableOpacity, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import { Ionicons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system';
 import Header from '../components/Header';
@@ -126,7 +127,7 @@ export default function HistoryScreen() {
         <Text style={styles.senderName}>{item.sender}</Text>
         <Text style={styles.donationTime}>{formatTime(item.timestamp)}</Text>
       </View>
-      <Text style={styles.donationAmount}>+{item.amount} sats</Text>
+      <Text style={styles.donationAmount}>+{item.amount}</Text>
     </View>
   );
   
@@ -149,13 +150,13 @@ export default function HistoryScreen() {
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Hoy</Text>
-            <Text style={styles.statValue}>{totalToday}</Text>
+            <Text style={styles.statValue}>{totalToday.toLocaleString()}</Text>
             <Text style={styles.statUnit}>sats</Text>
           </View>
           
           <View style={[styles.statBox, styles.statBoxHighlight]}>
             <Text style={styles.statLabel}>Total</Text>
-            <Text style={[styles.statValue, styles.statValueHighlight]}>{totalAll}</Text>
+            <Text style={[styles.statValue, styles.statValueHighlight]}>{totalAll.toLocaleString()}</Text>
             <Text style={styles.statUnit}>sats</Text>
           </View>
         </View>
@@ -176,13 +177,13 @@ export default function HistoryScreen() {
                   backgroundGradientFrom: '#fff',
                   backgroundGradientTo: '#fff',
                   decimalPlaces: 0,
-                  color: (opacity = 1) => `rgba(247, 147, 26, ${opacity})`,
-                  labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+                  color: (opacity = 1) => `rgba(99, 102, 241, ${opacity})`,
+                  labelColor: (opacity = 1) => `rgba(71, 85, 105, ${opacity})`,
                   style: { borderRadius: 16 },
                   propsForDots: {
                     r: '4',
                     strokeWidth: '2',
-                    stroke: '#F7931A',
+                    stroke: '#6366F1',
                   },
                 }}
                 bezier
@@ -190,15 +191,18 @@ export default function HistoryScreen() {
               />
             </View>
             
-            <TouchableOpacity style={styles.exportButton} onPress={exportToCSV}>
-              <Text style={styles.exportButtonText}>📊 Exportar a CSV</Text>
+            <TouchableOpacity style={styles.exportButton} onPress={exportToCSV} activeOpacity={0.7}>
+              <Ionicons name="download-outline" size={20} color="#FFFFFF" style={styles.exportIcon} />
+              <Text style={styles.exportButtonText}>Exportar CSV</Text>
             </TouchableOpacity>
           </>
         )}
         
         {donations.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💰</Text>
+            <View style={styles.emptyIconContainer}>
+              <Ionicons name="wallet-outline" size={48} color="#CBD5E1" />
+            </View>
             <Text style={styles.emptyText}>Aún no hay donaciones</Text>
             <Text style={styles.emptySubtext}>Cuando recibas sats, aparecerán aquí</Text>
           </View>
@@ -219,78 +223,119 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
   content: { flex: 1, padding: 20 },
-  statsRow: { flexDirection: 'row', gap: 15, marginBottom: 15 },
+  statsRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
   statBox: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
     padding: 20,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  statBoxHighlight: { backgroundColor: '#FFF3E0' },
-  statLabel: { fontSize: 14, color: '#666', marginBottom: 5 },
-  statValue: { fontSize: 28, fontWeight: 'bold', color: '#333' },
-  statValueHighlight: { color: '#F7931A' },
-  statUnit: { fontSize: 12, color: '#999' },
+  statBoxHighlight: { 
+    backgroundColor: '#EEF2FF',
+  },
+  statLabel: { fontSize: 13, color: '#64748B', marginBottom: 8, fontWeight: '500' },
+  statValue: { fontSize: 32, fontWeight: 'bold', color: '#1E293B' },
+  statValueHighlight: { color: '#6366F1' },
+  statUnit: { fontSize: 13, color: '#94A3B8', marginTop: 4 },
   chartContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 15,
-    padding: 15,
-    marginBottom: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   chartTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#666',
-    marginBottom: 10,
+    color: '#475569',
+    marginBottom: 12,
   },
   chart: {
-    borderRadius: 10,
+    borderRadius: 8,
   },
   exportButton: {
-    backgroundColor: '#F7931A',
-    paddingVertical: 12,
+    backgroundColor: '#6366F1',
+    paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 10,
+    borderRadius: 12,
     marginBottom: 20,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  exportIcon: {
+    marginRight: 8,
   },
   exportButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   list: { flex: 1 },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#f9f9f9',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    borderRadius: 8,
-    marginTop: 10,
-    marginBottom: 5,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '600', color: '#333', textTransform: 'capitalize' },
-  sectionTotal: { fontSize: 14, fontWeight: '600', color: '#F7931A' },
+  sectionTitle: { fontSize: 15, fontWeight: '600', color: '#1E293B', textTransform: 'capitalize' },
+  sectionTotal: { fontSize: 14, fontWeight: '600', color: '#6366F1' },
   donationItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   donationLeft: {},
-  senderName: { fontSize: 16, fontWeight: '500', color: '#333' },
-  donationTime: { fontSize: 12, color: '#999', marginTop: 2 },
-  donationAmount: { fontSize: 18, fontWeight: 'bold', color: '#00AA00' },
-  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyIcon: { fontSize: 60, marginBottom: 20 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#333', marginBottom: 5 },
-  emptySubtext: { fontSize: 14, color: '#999' },
+  senderName: { fontSize: 15, fontWeight: '600', color: '#1E293B', marginBottom: 4 },
+  donationTime: { fontSize: 13, color: '#94A3B8' },
+  donationAmount: { fontSize: 18, fontWeight: 'bold', color: '#10B981' },
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
+  emptyIconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  emptyText: { fontSize: 18, fontWeight: '600', color: '#475569', marginBottom: 8 },
+  emptySubtext: { fontSize: 14, color: '#94A3B8' },
 });
