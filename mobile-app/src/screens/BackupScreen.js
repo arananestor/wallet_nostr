@@ -14,17 +14,23 @@ export default function BackupScreen({ route, navigation }) {
   const [copied, setCopied] = useState(false);
   const { showToast } = useToast();
   
-  if (!keys) {
+  // VALIDACIÓN CRÍTICA
+  if (!keys || !keys.mnemonic) {
     return (
       <View style={styles.container}>
         <Header title="Error" />
-        <View style={styles.content}>
-          <Text style={styles.errorText}>Error: No se encontraron las llaves.</Text>
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color="#EF4444" />
+          <Text style={styles.errorTitle}>Error: No se encontraron las llaves</Text>
+          <Text style={styles.errorText}>
+            Las llaves de seguridad no se generaron correctamente.
+          </Text>
           <TouchableOpacity 
-            style={styles.button} 
+            style={styles.errorButton} 
             onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] })}
+            activeOpacity={0.7}
           >
-            <Text style={styles.buttonText}>Volver al inicio</Text>
+            <Text style={styles.errorButtonText}>Volver al inicio</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -166,6 +172,43 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F7FA' },
   content: { flex: 1 },
   scrollContent: { padding: 24 },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    textAlign: 'center',
+    marginTop: 24,
+    marginBottom: 12,
+  },
+  errorText: {
+    fontSize: 15,
+    color: '#64748B',
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  errorButton: {
+    backgroundColor: '#6366F1',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  errorButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
   warningBox: {
     backgroundColor: '#FEF3C7',
     borderRadius: 16,
@@ -312,23 +355,6 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   continueButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#64748B',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: '#6366F1',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
-import { generateNostrKeys } from '../services/nostr';
+import { generateNostrKeysWithMnemonic } from '../services/nostr';
 
 export default function RegisterScreen({ navigation }) {
   const [nombre, setNombre] = useState('');
@@ -10,16 +10,27 @@ export default function RegisterScreen({ navigation }) {
   
   const handleContinue = () => {
     if (!nombre.trim()) {
+      Alert.alert('Error', 'Por favor ingresa tu nombre');
       return;
     }
     
-    const keys = generateNostrKeys();
-    
-    navigation.navigate('Backup', {
-      nombre: nombre.trim(),
-      actividad: actividad.trim(),
-      keys,
-    });
+    try {
+      const keys = generateNostrKeysWithMnemonic();
+      
+      if (!keys || !keys.mnemonic) {
+        Alert.alert('Error', 'No se pudieron generar las llaves. Intenta de nuevo.');
+        return;
+      }
+      
+      navigation.navigate('Backup', {
+        nombre: nombre.trim(),
+        actividad: actividad.trim(),
+        keys: keys,
+      });
+    } catch (error) {
+      console.error('Error generando llaves:', error);
+      Alert.alert('Error', 'Ocurrió un error al generar las llaves.');
+    }
   };
   
   return (
