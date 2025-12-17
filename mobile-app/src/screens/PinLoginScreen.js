@@ -1,14 +1,49 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as LocalAuthentication from 'expo-local-authentication';
 import PinInput from '../components/PinInput';
-import { verifyPin } from '../utils/storage';
+import { verifyPin, isBiometricsEnabled } from '../utils/storage';
 
 export default function PinLoginScreen({ navigation }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
+  const [showBiometricButton, setShowBiometricButton] = useState(false);
+  
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+  
+  const checkBiometrics = async () => {
+    const enabled = await isBiometricsEnabled();
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    
+    if (enabled && compatible && enrolled) {
+      setShowBiometricButton(true);
+      // Auto-trigger biométricos
+      setTimeout(() => authenticateWithBiometrics(), 500);
+    }
+  };
+  
+  const authenticateWithBiometrics = async () => {
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Desbloquear app',
+        fallbackLabel: 'Usar PIN',
+        cancelLabel: 'Cancelar',
+      });
+      
+      if (result.success) {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        navigation.replace('Profile');
+      }
+    } catch (error) {
+      console.error('Error biométrico:', error);
+    }
+  };
   
   const handlePinChange = async (newPin) => {
     setPin(newPin);
@@ -57,6 +92,17 @@ export default function PinLoginScreen({ navigation }) {
           onPinChange={handlePinChange}
           maxLength={6}
         />
+        
+        {showBiometricButton && (
+          <TouchableOpacity 
+            style={styles.biometricButton}
+            onPress={authenticateWithBiometrics}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="finger-print" size={48} color="#FFFFFF" />
+            <Text style={styles.biometricText}>Usar biométricos</Text>
+          </TouchableOpacity>
+        )}
         
         <TouchableOpacity 
           style={styles.forgotButton}
@@ -117,8 +163,19 @@ const styles = StyleSheet.create({
     color: '#FEE2E2',
     fontWeight: '500',
   },
-  forgotButton: {
+  biometricButton: {
     marginTop: 32,
+    alignItems: 'center',
+    padding: 16,
+  },
+  biometricText: {
+    fontSize: 15,
+    color: '#FFFFFF',
+    marginTop: 8,
+    fontWeight: '500',
+  },
+  forgotButton: {
+    marginTop: 16,
     padding: 16,
   },
   forgotText: {

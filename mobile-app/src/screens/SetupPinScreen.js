@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as LocalAuthentication from 'expo-local-authentication';
 import Header from '../components/Header';
 import PinInput from '../components/PinInput';
-import { savePinHash } from '../utils/storage';
+import { savePinHash, setBiometricsEnabled } from '../utils/storage';
 import { useToast } from '../context/ToastContext';
 
 export default function SetupPinScreen({ route, navigation }) {
@@ -14,8 +15,21 @@ export default function SetupPinScreen({ route, navigation }) {
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [step, setStep] = useState(1);
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [enableBiometrics, setEnableBiometrics] = useState(false);
+  const [showBiometricsOption, setShowBiometricsOption] = useState(false);
   
   const { showToast } = useToast();
+  
+  useEffect(() => {
+    checkBiometrics();
+  }, []);
+  
+  const checkBiometrics = async () => {
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    setBiometricsAvailable(compatible && enrolled);
+  };
   
   const handlePinChange = async (newPin) => {
     if (step === 1) {
@@ -27,28 +41,18 @@ export default function SetupPinScreen({ route, navigation }) {
           setStep(2);
         }, 300);
       }
-    } else {
+    } else if (step === 2) {
       setConfirmPin(newPin);
       
       if (newPin.length === 6) {
         if (newPin === pin) {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           
-          const saved = await savePinHash(pin);
-          
-          if (saved) {
-            showToast('PIN configurado correctamente', 'success');
-            
-            if (onComplete) {
-              onComplete();
-            } else {
-              navigation.goBack();
-            }
+          if (biometricsAvailable) {
+            setStep(3);
+            setShowBiometricsOption(true);
           } else {
-            showToast('Error al guardar PIN', 'error');
-            setStep(1);
-            setPin('');
-            setConfirmPin('');
+            await finishSetup(false);
           }
         } else {
           await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -58,6 +62,77 @@ export default function SetupPinScreen({ route, navigation }) {
       }
     }
   };
+  
+  const finishSetup = async (useBiometrics) => {
+    const saved = await savePinHash(pin);
+    
+    if (saved) {
+      if (useBiometrics) {
+        await setBiometricsEnabled(true);
+      }
+      
+      showToast('PIN configurado correctamente', 'success');
+      
+      if (onComplete) {
+        onComplete();
+      } else {
+        navigation.goBack();
+      }
+    } else {
+      showToast('Error al guardar PIN', 'error');
+      setStep(1);
+      setPin('');
+      setConfirmPin('');
+    }
+  };
+  
+  const handleBiometricsChoice = async (enable) => {
+    setEnableBiometrics(enable);
+    await finishSetup(enable);
+  };
+  
+  if (showBiometricsOption) {
+    return (
+      <View style={styles.container}>
+        <Header title="Configurar PIN" />
+        
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6']}
+          style={styles.content}
+        >
+          <View style={styles.biometricsContainer}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="finger-print" size={64} color="#FFFFFF" />
+            </View>
+            
+            <Text style={styles.title}>¿Activar biométricos?</Text>
+            <Text style={styles.subtitle}>
+              Usa Face ID o huella digital para desbloquear más rápido
+            </Text>
+            
+            <View style={styles.biometricsButtons}>
+              <TouchableOpacity 
+                style={styles.biometricsButtonYes}
+                onPress={() => handleBiometricsChoice(true)}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                <Text style={styles.biometricsButtonText}>Sí, activar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.biometricsButtonNo}
+                onPress={() => handleBiometricsChoice(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.biometricsButtonTextNo}>Ahora no</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </LinearGradient>
+      </View>
+    );
+  }
   
   return (
     <View style={styles.container}>
@@ -150,5 +225,36 @@ const styles = StyleSheet.create({
   },
   stepDotActive: {
     backgroundColor: '#FFFFFF',
+  },
+  biometricsContainer: {
+    alignItems: 'center',
+  },
+  biometricsButtons: {
+    width: '100%',
+    marginTop: 40,
+    gap: 12,
+  },
+  biometricsButtonYes: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  biometricsButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#6366F1',
+  },
+  biometricsButtonNo: {
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  biometricsButtonTextNo: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '500',
   },
 });

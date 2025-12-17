@@ -141,6 +141,25 @@ export async function disablePin() {
   }
 }
 
+export async function setBiometricsEnabled(enabled) {
+  try {
+    await AsyncStorage.setItem('biometricsEnabled', JSON.stringify(enabled));
+    return true;
+  } catch (error) {
+    console.error('Error guardado configuracion biométrica:', error);
+    return false;
+  }
+}
+
+export async function isBiometricsEnabled() {
+  try {
+    const value = await AsyncStorage.getItem('biometricsEnabled');
+    return value === 'true';
+  } catch (error) {
+    return false;
+  }
+}
+
 // === LIMPIAR TODO ===
 
 export async function clearAllData() {

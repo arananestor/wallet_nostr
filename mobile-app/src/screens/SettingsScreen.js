@@ -7,6 +7,8 @@ import PinInput from '../components/PinInput';
 import { getNostrKeys, getUserProfile, saveUserProfile, clearAllData, verifyPin, isPinEnabled } from '../utils/storage';
 import { createNostrClient, publishProfile } from '../services/nostr';
 import { useToast } from '../context/ToastContext';
+import * as LocalAuthentication from 'expo-local-authentication';
+import { isBiometricsEnabled, setBiometricsEnabled } from '../utils/storage';
 
 export default function SettingsScreen({ navigation }) {
   const [newAddress, setNewAddress] = useState('');
@@ -14,12 +16,31 @@ export default function SettingsScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
   const [pin, setPin] = useState('');
+  const [biometricsAvailable, setBiometricsAvailable] = useState(false);
+  const [biometricsEnabled, setBiometricsEnabledState] = useState(false);
   
   const { showToast } = useToast();
   
   useEffect(() => {
     loadCurrentAddress();
+    checkBiometrics();
   }, []);
+
+  const checkBiometrics = async () => {
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    const enrolled = await LocalAuthentication.isEnrolledAsync();
+    const enabled = await isBiometricsEnabled();
+  
+  setBiometricsAvailable(compatible && enrolled);
+  setBiometricsEnabledState(enabled);
+  };
+
+  const toggleBiometrics = async () => {
+    const newValue = !biometricsEnabled;
+    await setBiometricsEnabled(newValue);
+    setBiometricsEnabledState(newValue);
+    showToast(newValue ? 'Biométricos activados' : 'Biométricos desactivados', 'success');
+  };
   
   const loadCurrentAddress = async () => {
     const profile = await getUserProfile();
@@ -242,7 +263,28 @@ export default function SettingsScreen({ navigation }) {
             <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
           </TouchableOpacity>
         </View>
-        
+
+        {biometricsAvailable && (
+          <TouchableOpacity 
+            style={styles.optionButton} 
+            onPress={toggleBiometrics}
+            activeOpacity={0.7}
+          >
+            <View style={styles.optionLeft}>
+              <View style={styles.optionIconContainer}>
+                <Ionicons 
+                  name={biometricsEnabled ? "finger-print" : "finger-print-outline"} 
+                  size={22} 
+                  color={biometricsEnabled ? "#10B981" : "#6366F1"} 
+                />
+              </View>
+              <Text style={styles.optionText}>
+                {biometricsEnabled ? 'Desactivar biométricos' : 'Activar biométricos'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+            </TouchableOpacity>
+        )}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Cuenta</Text>
           
