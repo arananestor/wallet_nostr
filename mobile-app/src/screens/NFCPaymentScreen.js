@@ -116,7 +116,7 @@ export default function NFCPaymentScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Header title="Cobro presencial" />
+      <Header title="cobro express" />
 
       <View style={styles.content}>
         <LinearGradient
@@ -146,6 +146,7 @@ export default function NFCPaymentScreen({ navigation }) {
                 placeholder="0"
                 placeholderTextColor="rgba(255, 255, 255, 0.5)"
                 editable={!isWaiting}
+                selectTextOnFocus={true}
               />
               <Text style={styles.unit}>sats</Text>
             </View>

@@ -263,6 +263,16 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.actionText}>Historial</Text>
           </TouchableOpacity>
         </View>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('NFCPayment')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.actionIconContainer}>
+              <Ionicons name="phone-portrait-outline" size={22} color="#6366F1" />
+            </View>
+            <Text style={styles.actionText}>cobro express</Text>
+          </TouchableOpacity>
         
         {/* BOTÓN DE PRUEBA */}
         <TouchableOpacity 
