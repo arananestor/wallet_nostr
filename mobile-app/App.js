@@ -5,7 +5,6 @@ import { DonationProvider } from './src/context/DonationContext';
 import { ToastProvider } from './src/context/ToastContext';
 import { AppLockProvider } from './src/context/AppLockContext';
 import DonationOverlay from './src/components/DonationOverlay';
-
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
 import BackupScreen from './src/screens/BackupScreen';
@@ -20,6 +19,7 @@ import PinLoginScreen from './src/screens/PinLoginScreen';
 import PinVerificationScreen from './src/screens/PinVerificationScreen';
 import NFCPaymentScreen from './src/screens/NFCPaymentScreen';
 import QRPreviewScreen from './src/screens/QRPreviewScreen';
+import PerfilScreen from './src/screens/PerfilScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -41,6 +41,7 @@ function AppNavigator() {
         <Stack.Screen name="PinLogin" component={PinLoginScreen} />
         <Stack.Screen name="NFCPayment" component={NFCPaymentScreen} options={{ headerShown: false }} />
         <Stack.Screen name="QRPreview" component={QRPreviewScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Perfil" component={PerfilScreen} options={{ headerShown: false }} />
         <Stack.Screen 
           name="PinVerification" 
           component={PinVerificationScreen}

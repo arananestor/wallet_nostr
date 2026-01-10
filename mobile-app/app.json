@@ -18,7 +18,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.nostr.bitcoinwallet",
       "infoPlist": {
-        "NFCReaderUsageDescription": "Esta app necesita NFC para procesar pagos presenciales"
+        "NFCReaderUsageDescription": "Esta app necesita NFC para procesar pagos presenciales",
+        "NSCameraUsageDescription": "Permitir acceso a cámara para tomar foto de perfil",
+        "NSPhotoLibraryUsageDescription": "Permitir acceso a fotos para foto de perfil"
       }
     },
     "android": {
@@ -28,7 +30,11 @@
       },
       "package": "com.nostr.bitcoinwallet",
       "permissions": [
-        "android.permission.NFC"
+        "android.permission.NFC",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES"
       ]
     },
     "plugins": [
@@ -38,6 +44,13 @@
           "android": {
             "usesCleartextTraffic": true
           }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permitir acceso a fotos para foto de perfil",
+          "cameraPermission": "Permitir acceso a cámara para tomar foto"
         }
       ]
     ],

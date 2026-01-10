@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -93,7 +94,7 @@ export default function SetupPinScreen({ route, navigation }) {
   
   if (showBiometricsOption) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <Header title="Configurar PIN" />
         
         <LinearGradient
@@ -130,12 +131,12 @@ export default function SetupPinScreen({ route, navigation }) {
             </View>
           </View>
         </LinearGradient>
-      </View>
+      </SafeAreaView>
     );
   }
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <Header title="Configurar PIN" />
       
       <LinearGradient
@@ -170,14 +171,14 @@ export default function SetupPinScreen({ route, navigation }) {
           <View style={[styles.stepDot, step >= 2 && styles.stepDotActive]} />
         </View>
       </LinearGradient>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7FA',
+    backgroundColor: '#6366F1',
   },
   content: {
     flex: 1,

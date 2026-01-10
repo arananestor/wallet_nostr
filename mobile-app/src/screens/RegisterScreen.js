@@ -51,6 +51,7 @@ export default function RegisterScreen({ navigation }) {
           </View>
           <Text style={styles.title}>Cuéntanos sobre ti</Text>
           <Text style={styles.subtitle}>
+            Esta información aparecerá en tu código QR
           </Text>
         </View>
         
