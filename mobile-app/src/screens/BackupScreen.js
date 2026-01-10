@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import Header from '../components/Header';
 import { useToast } from '../context/ToastContext';
+import { saveUserProfile } from '../utils/storage';
 
 export default function BackupScreen({ route, navigation }) {
   const params = route?.params || {};
@@ -54,7 +55,7 @@ export default function BackupScreen({ route, navigation }) {
     }
   };
   
-  const handleContinue = () => {
+  const handleContinue = async () => {
     Alert.alert(
       '¿Guardaste tus palabras?',
       'Sin estas 12 palabras NO podrás recuperar tu cuenta si pierdes tu teléfono.',
@@ -62,12 +63,26 @@ export default function BackupScreen({ route, navigation }) {
         { text: 'Aún no', style: 'cancel' },
         { 
           text: 'Sí, las guardé', 
-          onPress: () => {
-            navigation.navigate('ConnectWallet', {
-              nombre,
-              actividad,
-              keys,
-            });
+          onPress: async () => {
+            try {
+              // GUARDAR PERFIL CON ACTIVIDAD
+              await saveUserProfile({
+                name: nombre,
+                activity: actividad, // ESTO ES CRÍTICO
+                lightningAddress: '', // Se configurará después
+                npub: keys.npub,
+                nsec: keys.nsec,
+              });
+              
+              navigation.navigate('ConnectWallet', {
+                nombre,
+                actividad,
+                keys,
+              });
+            } catch (error) {
+              console.error('Error guardando perfil:', error);
+              showToast('Error al guardar perfil', 'error');
+            }
           }
         },
       ]

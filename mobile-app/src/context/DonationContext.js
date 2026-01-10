@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { getNostrKeys, getDonations, addDonation } from '../utils/storage';
+import { getNostrKeys, getDonations, addDonation as saveDonation } from '../utils/storage';
 import { createNostrClient, subscribeToZaps } from '../services/nostr';
 
 const DonationContext = createContext();
@@ -26,7 +26,6 @@ export function DonationProvider({ children }) {
   useEffect(() => {
     initializeApp();
     
-    // Escuchar cambios de estado de la app (background/foreground)
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     
     return () => {
@@ -35,7 +34,6 @@ export function DonationProvider({ children }) {
     };
   }, []);
   
-  // Limpia suscripciones y timeouts
   const cleanup = () => {
     if (subscriptionRef.current) {
       try {
@@ -47,7 +45,6 @@ export function DonationProvider({ children }) {
     }
   };
   
-  // Cuando la app vuelve al frente, verificar conexión
   const handleAppStateChange = (nextAppState) => {
     if (
       appStateRef.current.match(/inactive|background/) &&
@@ -89,7 +86,6 @@ export function DonationProvider({ children }) {
         return false;
       }
       
-      // Desconectar suscripción anterior si existe
       if (subscriptionRef.current) {
         try {
           subscriptionRef.current.stop();
@@ -119,7 +115,6 @@ export function DonationProvider({ children }) {
     }
   };
   
-  // Programa un reintento automático
   const scheduleRetry = () => {
     if (retryCountRef.current < MAX_RETRIES) {
       retryCountRef.current += 1;
@@ -134,7 +129,6 @@ export function DonationProvider({ children }) {
     }
   };
   
-  // Reconexión manual (cuando el usuario toca)
   const manualReconnect = async () => {
     console.log('🔄 Reconexión manual...');
     retryCountRef.current = 0;
@@ -142,7 +136,6 @@ export function DonationProvider({ children }) {
     return await connectToNostr();
   };
   
-  // Pull-to-refresh
   const refresh = async () => {
     setIsRefreshing(true);
     console.log('🔄 Refrescando...');
@@ -172,13 +165,36 @@ export function DonationProvider({ children }) {
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      const updatedDonations = await addDonation(donation);
+      const updatedDonations = await saveDonation(donation);
       setDonations(updatedDonations);
       setCurrentDonation(donation);
       
       console.log(`💰 Nueva donación: ${donation.amount} sats de ${donation.sender}`);
     } catch (error) {
       console.error('Error processing zap:', error);
+    }
+  };
+  
+  // NUEVA FUNCIÓN: addDonation para uso manual (botón test)
+  const addDonationManual = async (amount) => {
+    try {
+      const testDonation = {
+        id: Date.now().toString(),
+        sender: 'Test',
+        amount: amount,
+        timestamp: Math.floor(Date.now() / 1000),
+        date: new Date().toISOString().split('T')[0],
+      };
+      
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      const updatedDonations = await saveDonation(testDonation);
+      setDonations(updatedDonations);
+      setCurrentDonation(testDonation);
+      
+      console.log(`🧪 Donación de prueba: ${amount} sats`);
+    } catch (error) {
+      console.error('Error adding manual donation:', error);
     }
   };
   
@@ -198,6 +214,9 @@ export function DonationProvider({ children }) {
   const getTotalAll = () => {
     return donations.reduce((sum, d) => sum + d.amount, 0);
   };
+  
+  // AGREGAR: totalAmount como alias
+  const totalAmount = getTotalAll();
   
   const getDonationsByDate = () => {
     const grouped = {};
@@ -223,7 +242,7 @@ export function DonationProvider({ children }) {
       
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      const updatedDonations = await addDonation(testDonation);
+      const updatedDonations = await saveDonation(testDonation);
       setDonations(updatedDonations);
       setCurrentDonation(testDonation);
     } catch (error) {
@@ -237,6 +256,7 @@ export function DonationProvider({ children }) {
         currentDonation,
         clearCurrentDonation,
         donations,
+        totalAmount, // AGREGAR ESTO
         isConnected,
         isLoading,
         isRefreshing,
@@ -248,6 +268,7 @@ export function DonationProvider({ children }) {
         getTotalAll,
         getDonationsByDate,
         simulateDonation,
+        addDonation: addDonationManual, // AGREGAR ESTO
       }}
     >
       {children}

@@ -19,6 +19,7 @@ import SetupPinScreen from './src/screens/SetupPinScreen';
 import PinLoginScreen from './src/screens/PinLoginScreen';
 import PinVerificationScreen from './src/screens/PinVerificationScreen';
 import NFCPaymentScreen from './src/screens/NFCPaymentScreen';
+import QRPreviewScreen from './src/screens/QRPreviewScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -39,6 +40,7 @@ function AppNavigator() {
         <Stack.Screen name="SetupPin" component={SetupPinScreen} />
         <Stack.Screen name="PinLogin" component={PinLoginScreen} />
         <Stack.Screen name="NFCPayment" component={NFCPaymentScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="QRPreview" component={QRPreviewScreen} options={{ headerShown: false }} />
         <Stack.Screen 
           name="PinVerification" 
           component={PinVerificationScreen}

@@ -1,487 +1,517 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Share, Alert, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
-import QRCode from 'react-native-qrcode-svg';
-import * as Print from 'expo-print';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import Header from '../components/Header';
-import { getNostrKeys, getUserProfile } from '../utils/storage';
-import { generateQRData } from '../services/nostr';
+import * as Haptics from 'expo-haptics';
+import { getUserProfile } from '../utils/storage';
 import { useDonations } from '../context/DonationContext';
 import { useToast } from '../context/ToastContext';
 
 const SATS_TO_USD = 0.00043;
 
 export default function ProfileScreen({ navigation }) {
-  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(null);
-  const [keys, setKeys] = useState(null);
-  const qrRef = useRef();
-  
-  const { 
-    isConnected, 
-    isRefreshing, 
-    connectionError,
-    refresh, 
-    manualReconnect,
-    getTotalToday, 
-    getTotalAll,
-    simulateDonation 
-  } = useDonations();
-  
+  const [refreshing, setRefreshing] = useState(false);
+  const { donations = [], totalAmount, addDonation } = useDonations();
   const { showToast } = useToast();
-  
+
+  // FIX: Validar valores y calcular UNA SOLA VEZ
+  const safeAmount = totalAmount || 0;
+  const convertedUSD = (safeAmount * SATS_TO_USD).toFixed(2);
+
   useEffect(() => {
     loadProfile();
   }, []);
-  
+
   const loadProfile = async () => {
-    try {
-      const savedKeys = await getNostrKeys();
-      const savedProfile = await getUserProfile();
-      
-      if (!savedKeys || !savedProfile) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'Welcome' }],
-        });
-        return;
-      }
-      
-      setKeys(savedKeys);
-      setProfile(savedProfile);
-      setLoading(false);
-    } catch (error) {
-      console.error(error);
-      showToast('Error cargando perfil', 'error');
-      setLoading(false);
-    }
+    const savedProfile = await getUserProfile();
+    console.log('Perfil cargado:', savedProfile); // DEBUG
+    setProfile(savedProfile);
   };
-  
+
   const onRefresh = useCallback(async () => {
-    const connected = await refresh();
-    if (connected) {
-      showToast('Conexión actualizada', 'success');
-    } else {
-      showToast('No se pudo conectar', 'warning');
-    }
-  }, [refresh, showToast]);
-  
-  const handleReconnect = async () => {
-    showToast('Reconectando...', 'info');
-    const connected = await manualReconnect();
-    if (connected) {
-      showToast('¡Conectado!', 'success');
-    } else {
-      showToast('No se pudo conectar', 'error');
-    }
+    setRefreshing(true);
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await loadProfile();
+    setRefreshing(false);
+  }, []);
+
+  const handleTestDonation = async () => {
+    const testAmount = Math.floor(Math.random() * 10000) + 1000;
+    addDonation(testAmount);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast(`+${testAmount} sats de prueba`, 'success');
   };
-  
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message: `Envíame sats: ${profile.lightningAddress}`,
-      });
-    } catch (error) {
-      showToast('Error al compartir', 'error');
-    }
-  };
-  
-  const generarMensaje = () => {
-    if (!profile.actividad) {
-      return `Hola, soy ${profile.nombre}`;
-    }
-    
-    const actividadLower = profile.actividad.toLowerCase();
-    
-    if (actividadLower.includes('vendo') || actividadLower.includes('venta')) {
-      return `Yo ${profile.actividad}. Para pagar, escanea aquí`;
-    }
-    
-    return `Yo ${profile.actividad}. Si te gustó, dona aquí`;
-  };
-  
-  const handlePrint = async () => {
-    try {
-      qrRef.current?.toDataURL(async (dataURL) => {
-        const mensaje = generarMensaje();
-        
-        const html = `
-          <html>
-            <head>
-              <style>
-                @page { size: auto; margin: 10mm; }
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body {
-                  display: flex;
-                  flex-direction: column;
-                  align-items: center;
-                  padding: 20px;
-                  font-family: Arial, sans-serif;
-                }
-                .container { text-align: center; max-width: 400px; }
-                .nombre { font-size: 32px; font-weight: bold; margin-bottom: 10px; color: #333; }
-                .mensaje { font-size: 20px; color: #666; margin-bottom: 25px; line-height: 1.4; }
-                .qr-image { width: 280px; height: 280px; }
-                .address { margin-top: 20px; font-size: 14px; color: #999; }
-              </style>
-            </head>
-            <body>
-              <div class="container">
-                <p class="nombre">${profile.nombre}</p>
-                <p class="mensaje">${mensaje}</p>
-                <img class="qr-image" src="data:image/png;base64,${dataURL}" />
-                <p class="address">${profile.lightningAddress}</p>
-              </div>
-            </body>
-          </html>
-        `;
-        
-        await Print.printAsync({ html, orientation: Print.Orientation.portrait });
-      });
-    } catch (error) {
-      showToast('Error al imprimir', 'error');
-    }
-  };
-  
-  if (loading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
-      </View>
-    );
-  }
-  
-  const qrData = generateQRData(keys.npub, profile.lightningAddress);
-  const totalToday = getTotalToday();
-  const totalAll = getTotalAll();
-  const usdToday = (totalToday * SATS_TO_USD).toFixed(2);
-  const usdTotal = (totalAll * SATS_TO_USD).toFixed(2);
-  
+
+  const todayDonations = donations.filter(d => {
+    const today = new Date().toDateString();
+    const donationDate = new Date(d.timestamp).toDateString();
+    return today === donationDate;
+  });
+
+  const recentDonations = donations.slice(0, 3);
+
   return (
     <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Mi Perfil</Text>
+        <TouchableOpacity 
+          style={styles.profileButton}
+          onPress={() => navigation.navigate('Perfil')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.avatarCircle}>
+            <Ionicons name="person-outline" size={24} color="#6366F1" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        style={styles.content}
+        showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={onRefresh}
-            colors={['#6366F1']}
-            tintColor="#6366F1"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366F1" />
         }
       >
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <View>
-              <Text style={styles.greeting}>Hola,</Text>
-              <Text style={styles.userName}>{profile.nombre}</Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.settingsButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Ionicons name="settings-outline" size={24} color="#475569" />
-            </TouchableOpacity>
-          </View>
-          
-          <TouchableOpacity 
-            style={styles.statusBadge}
-            onPress={!isConnected ? handleReconnect : null}
-            disabled={isConnected}
-            activeOpacity={isConnected ? 1 : 0.7}
-          >
-            <View style={[styles.statusDot, isConnected ? styles.connected : styles.disconnected]} />
-            <Text style={styles.statusText}>
-              {isConnected ? 'Conectado' : connectionError || 'Sin conexión'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        
-        <LinearGradient
-          colors={['#6366F1', '#8B5CF6']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.balanceCard}
-        >
-          <Text style={styles.balanceLabel}>Balance total</Text>
-          <Text style={styles.balanceAmount}>{totalAll.toLocaleString()}</Text>
-          <Text style={styles.balanceUnit}>sats</Text>
-          <Text style={styles.balanceUSD}>${usdTotal} USD</Text>
-          
-          {totalToday > 0 && (
-            <View style={styles.todayBadge}>
-              <Text style={styles.todayLabel}>Hoy: {totalToday} sats</Text>
-            </View>
-          )}
-        </LinearGradient>
-        
-        <View style={styles.qrSection}>
-          <Text style={styles.sectionTitle}>Tu código QR</Text>
-          <View style={styles.qrContainer}>
-            <QRCode
-              value={qrData}
-              size={200}
-              backgroundColor="white"
-              getRef={(ref) => (qrRef.current = ref)}
-            />
-          </View>
-          <Text style={styles.address}>{profile.lightningAddress}</Text>
-        </View>
-        
-        <View style={styles.actionsGrid}>
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={handleShare}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="share-outline" size={24} color="#475569" />
-            </View>
-            <Text style={styles.actionText}>Compartir</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={handlePrint}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="print-outline" size={24} color="#475569" />
-            </View>
-            <Text style={styles.actionText}>Imprimir</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton} 
-            onPress={() => navigation.navigate('History')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="stats-chart-outline" size={24} color="#475569" />
-            </View>
-            <Text style={styles.actionText}>Historial</Text>
-          </TouchableOpacity>
-        </View>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={() => navigation.navigate('NFCPayment')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.actionIconContainer}>
-              <Ionicons name="phone-portrait-outline" size={22} color="#6366F1" />
-            </View>
-            <Text style={styles.actionText}>cobro express</Text>
-          </TouchableOpacity>
-        
-        {/* BOTÓN DE PRUEBA */}
+        {/* Balance Card (clickeable → Historial) */}
         <TouchableOpacity 
-          style={styles.testButton} 
-          onPress={simulateDonation}
+          style={styles.balanceCard}
+          onPress={() => navigation.navigate('History')}
+          activeOpacity={0.95}
+        >
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceGradient}
+          >
+            <View style={styles.balanceHeader}>
+              <Text style={styles.balanceLabel}>Balance total</Text>
+              {todayDonations.length > 0 && (
+                <View style={styles.todayBadge}>
+                  <Text style={styles.todayText}>Hoy</Text>
+                </View>
+              )}
+            </View>
+            
+            <Text style={styles.balanceAmount}>{safeAmount.toLocaleString()}</Text>
+            <Text style={styles.balanceUnit}>sats</Text>
+            
+            <View style={styles.usdConversion}>
+              <Text style={styles.usdAmount}>≈ ${convertedUSD} USD</Text>
+            </View>
+
+            <View style={styles.tapHint}>
+              <Ionicons name="analytics-outline" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.tapHintText}>Toca para ver historial</Text>
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* QR Card (clickeable → Vista previa impresión) */}
+        <TouchableOpacity 
+          style={styles.qrCard}
+          onPress={() => navigation.navigate('QRPreview')}
+          activeOpacity={0.95}
+        >
+          <View style={styles.qrHeader}>
+            <View>
+              <Text style={styles.qrTitle}>Tu código QR</Text>
+              <Text style={styles.qrSubtitle}>{profile?.lightningAddress || 'Sin configurar'}</Text>
+            </View>
+            <View style={styles.qrIconContainer}>
+              <Ionicons name="qr-code" size={32} color="#6366F1" />
+            </View>
+          </View>
+
+          <View style={styles.tapHint2}>
+            <Ionicons name="print-outline" size={16} color="#6366F1" />
+            <Text style={styles.tapHintText2}>Toca para imprimir</Text>
+          </View>
+        </TouchableOpacity>
+
+        {/* Botón test - SOLO EN DESARROLLO */}
+        {__DEV__ && (
+          <TouchableOpacity
+            style={styles.testButton}
+            onPress={handleTestDonation}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="flask" size={20} color="#6366F1" />
+            <Text style={styles.testButtonText}>Simular donación</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Transacciones recientes */}
+        {recentDonations.length > 0 && (
+          <View style={styles.transactionsSection}>
+            <View style={styles.transactionsHeader}>
+              <Text style={styles.sectionTitle}>Actividad reciente</Text>
+              <TouchableOpacity onPress={() => navigation.navigate('History')}>
+                <Text style={styles.seeAllText}>Ver todas →</Text>
+              </TouchableOpacity>
+            </View>
+
+            {recentDonations.map((donation, index) => (
+              <View key={index} style={styles.transactionItem}>
+                <View style={styles.transactionIcon}>
+                  <Ionicons name="arrow-down" size={20} color="#10B981" />
+                </View>
+                <View style={styles.transactionDetails}>
+                  <Text style={styles.transactionTitle}>Donación recibida</Text>
+                  <Text style={styles.transactionDate}>
+                    {new Date(donation.timestamp).toLocaleString('es-ES', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </Text>
+                </View>
+                <Text style={styles.transactionAmount}>+{donation.amount}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {recentDonations.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="wallet-outline" size={64} color="#CBD5E1" />
+            <Text style={styles.emptyTitle}>Sin transacciones aún</Text>
+            <Text style={styles.emptyText}>Comparte tu QR para recibir donaciones</Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        <TouchableOpacity style={styles.navItem} activeOpacity={0.7}>
+          <Ionicons name="home" size={26} color="#6366F1" />
+          <Text style={[styles.navText, styles.navTextActive]}>Inicio</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.navItemCenter}
+          onPress={() => navigation.navigate('NFCPayment')}
           activeOpacity={0.8}
         >
-          <Text style={styles.testButtonText}>Simular Donación (TEST)</Text>
+          <LinearGradient
+            colors={['#6366F1', '#8B5CF6']}
+            style={styles.navCenterButton}
+          >
+            <Ionicons name="phone-portrait" size={28} color="#FFFFFF" />
+          </LinearGradient>
+          <Text style={styles.navCenterText}>Cobro</Text>
         </TouchableOpacity>
-      </ScrollView>
+
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => navigation.navigate('Settings')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="settings-outline" size={26} color="#64748B" />
+          <Text style={styles.navText}>Ajustes</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    backgroundColor: '#F5F7FA',
-  },
-  loadingContainer: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    backgroundColor: '#F5F7FA',
-  },
-  scrollContent: { 
-    flexGrow: 1,
-    padding: 20,
-    paddingTop: 60,
-  },
+  container: { flex: 1, backgroundColor: '#F5F7FA' },
   header: {
-    marginBottom: 24,
-    marginTop: 60,
-  },
-  headerTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  greeting: {
-    fontSize: 16,
-    color: '#64748B',
-    marginBottom: 4,
-  },
-  userName: {
+  headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#1E293B',
   },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#FFFFFF',
+  profileButton: {},
+  avatarCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: 'flex-start',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  statusDot: { 
-    width: 8, 
-    height: 8, 
-    borderRadius: 4, 
-    marginRight: 8,
-  },
-  connected: { backgroundColor: '#10B981' },
-  disconnected: { backgroundColor: '#EF4444' },
-  statusText: { 
-    fontSize: 13, 
-    color: '#64748B',
-    fontWeight: '500',
-  },
+  content: { flex: 1, paddingHorizontal: 20, paddingTop: 20 },
+  
+  // Balance Card
   balanceCard: {
-    borderRadius: 24,
-    padding: 28,
-    marginBottom: 24,
+    marginBottom: 16,
+    borderRadius: 20,
+    overflow: 'hidden',
     shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
     elevation: 8,
   },
+  balanceGradient: {
+    padding: 24,
+  },
+  balanceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   balanceLabel: {
-    fontSize: 14,
-    color: '#E0E7FF',
-    marginBottom: 8,
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '500',
   },
+  todayBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  todayText: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
   balanceAmount: {
-    fontSize: 48,
+    fontSize: 52,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 4,
   },
   balanceUnit: {
     fontSize: 18,
-    color: '#E0E7FF',
-    marginBottom: 12,
-  },
-  balanceUSD: {
-    fontSize: 20,
-    color: '#FFFFFF',
+    color: 'rgba(255, 255, 255, 0.9)',
     fontWeight: '600',
   },
-  todayBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginTop: 16,
-    alignSelf: 'flex-start',
+  usdConversion: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.2)',
   },
-  todayLabel: {
-    fontSize: 13,
-    color: '#FFFFFF',
-    fontWeight: '600',
+  usdAmount: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.95)',
+    fontWeight: '500',
   },
-  qrSection: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginBottom: 20,
+  tapHint: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+  },
+  tapHintText: {
+    fontSize: 13,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+
+  // QR Card
+  qrCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 12,
+    shadowRadius: 8,
     elevation: 3,
   },
-  sectionTitle: {
-    fontSize: 16,
+  qrHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  qrTitle: {
+    fontSize: 17,
     fontWeight: '600',
     color: '#1E293B',
-    marginBottom: 20,
+    marginBottom: 4,
   },
-  qrContainer: {
-    padding: 20,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  address: { 
-    fontSize: 13, 
+  qrSubtitle: {
+    fontSize: 13,
     color: '#64748B',
-    textAlign: 'center',
   },
-  actionsGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  actionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#F1F5F9',
+  qrIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#EEF2FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  actionText: {
-    fontSize: 13,
-    color: '#475569',
-    fontWeight: '600',
-  },
-  testButton: {
-    backgroundColor: '#EF4444',
-    paddingVertical: 16,
-    borderRadius: 16,
+  tapHint2: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#EF4444',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
+    gap: 6,
+  },
+  tapHintText2: {
+    fontSize: 13,
+    color: '#6366F1',
+    fontWeight: '500',
+  },
+
+  // Botón test
+  testButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#FEF3C7',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#FDE68A',
+    borderStyle: 'dashed',
   },
   testButtonText: {
-    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#92400E',
+  },
+
+  // Transacciones
+  transactionsSection: {
+    marginBottom: 24,
+  },
+  transactionsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1E293B',
+  },
+  seeAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6366F1',
+  },
+  transactionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  transactionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#ECFDF5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  transactionDetails: { flex: 1 },
+  transactionTitle: {
     fontSize: 15,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: '#1E293B',
+    marginBottom: 2,
+  },
+  transactionDate: {
+    fontSize: 13,
+    color: '#94A3B8',
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10B981',
+  },
+
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#475569',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+
+  // Bottom Nav
+  bottomNav: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 10,
+  },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  navItemCenter: {
+    flex: 1,
+    alignItems: 'center',
+    marginTop: -24,
+  },
+  navCenterButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  navText: {
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  navTextActive: {
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  navCenterText: {
+    fontSize: 10,
+    color: '#6366F1',
+    marginTop: 6,
+    fontWeight: '600',
   },
 });
