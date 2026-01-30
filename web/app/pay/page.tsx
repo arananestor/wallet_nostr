@@ -51,7 +51,7 @@ export default function PayPage() {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               placeholder="1000"
-              className="w-full px-4 py-4 text-2xl font-bold text-center border-2 border-gray-200 rounded-xl focus:border-purple-500 focus:outline-none"
+              className="w-full px-4 py-4 text-2xl font-bold text-center text-gray-900 border-2 border-gray-300 rounded-xl focus:border-purple-500 focus:outline-none placeholder:text-gray-400"
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 font-semibold">
               sats

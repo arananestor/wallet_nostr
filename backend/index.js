@@ -25,7 +25,7 @@ app.get('/health', (req, res) => {
 });
 
 // Rutas principales (las crearemos después)
-// app.use('/api/invoice', require('./routes/invoice'));
+app.use('/api/invoice', require('./routes/invoice'));
 // app.use('/api/webhook', require('./routes/webhook'));
 
 // Manejo de errores
