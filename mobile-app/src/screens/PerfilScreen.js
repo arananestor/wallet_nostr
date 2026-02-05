@@ -148,9 +148,9 @@ export default function PerfilScreen({ navigation }) {
                     <Text style={styles.stepNumberText}>1</Text>
                   </View>
                   <View style={styles.stepContent}>
-                    <Text style={styles.stepTitle}>Descarga Chivo Wallet</Text>
+                    <Text style={styles.stepTitle}>Descarga Chivo Wallet o Athena</Text>
                     <Text style={styles.stepText}>
-                      Disponible en App Store y Google Play. Es la wallet oficial de El Salvador.
+                      Disponible en App Store y Google Play. Es la wallet oficial de El Salvador. Athena cuenta con multiples cajeros
                     </Text>
                   </View>
                 </View>
